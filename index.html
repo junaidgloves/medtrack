@@ -1,0 +1,1955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedTrack v2.5.081109</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   SHARED BASE
+═══════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#1a6b4a;--green-d:#134e37;--green-l:#e8f5ef;--green-m:#5aad85;
+  --blue:#1a4a8a;--blue-l:#e8f0fb;--blue-m:#5a8acd;
+  --amber:#b86a00;--amber-l:#fff3e0;--amber-m:#e8a020;
+  --coral:#c0392b;--coral-l:#fdecea;
+  --purple:#6b3fa0;--purple-l:#f0eafb;
+  --slate:#2c3e50;--slate-m:#5a6a7a;--slate-l:#e8ecf0;
+  --bg:#f4f6f9;--card:#fff;--border:#dde1e7;--border-m:#c5ccd5;
+  --text:#1c2533;--muted:#6b7a8d;--subtle:#9aa5b4;
+  --font:'Instrument Sans',sans-serif;--serif:'Fraunces',serif;
+  --r:12px;--r-sm:9px;--r-xs:6px;
+  --sh:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --sh-md:0 4px 16px rgba(0,0,0,.1);
+  --sh-lg:0 12px 40px rgba(0,0,0,.15);
+  --sidebar-w:220px;
+  --header-h:56px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+#file-input{display:none}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:var(--border-m);border-radius:4px}
+
+/* CALENDAR BARS — shared (used by both desktop and mobile) */
+.dot-row{display:flex;gap:2px;margin-top:3px;justify-content:center;min-height:6px}
+.dot-row span{width:10px;height:5px;border-radius:2px;display:block}
+.dot-taken{background:#1a6b4a}.dot-pending{background:#b86a00}.dot-skipped{background:#c0392b}
+
+/* TOAST — shared */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--slate);color:#fff;padding:10px 20px;border-radius:50px;font-size:12px;font-weight:500;z-index:500;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;white-space:nowrap;box-shadow:var(--sh-lg)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* CONFIRM — shared */
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(10,20,40,.5);z-index:400;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:20px}
+.confirm-overlay.open{display:flex}
+.confirm-box{background:var(--card);border-radius:var(--r);padding:28px 24px;width:100%;max-width:320px;animation:popIn .2s cubic-bezier(.34,1.4,.64,1);box-shadow:var(--sh-lg)}
+.confirm-ico{width:50px;height:50px;background:var(--coral-l);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;margin:0 auto 14px}
+.confirm-box h3{text-align:center;font-size:16px;font-weight:600;margin-bottom:7px}
+.confirm-box p{text-align:center;font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:18px}
+.confirm-btns{display:flex;gap:10px}
+.btn-keep{flex:1;padding:11px;border:1.5px solid var(--border);border-radius:var(--r-xs);background:none;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--muted)}
+.btn-del{flex:1;padding:11px;background:var(--coral);color:#fff;border:none;border-radius:var(--r-xs);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer}
+
+@keyframes popIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+
+/* ═══════════════════════════════════════════════════════════
+   DESKTOP — >768px
+═══════════════════════════════════════════════════════════ */
+#desktop-root{display:none}
+#mobile-root{display:none}
+
+@media(min-width:769px){
+  #desktop-root{display:block}
+  .toast{bottom:24px}
+
+  /* FIXED HEADER */
+  .app-header{position:fixed;top:0;left:0;right:0;height:var(--header-h);background:var(--green);z-index:100;display:flex;align-items:center;padding:0 20px;box-shadow:0 2px 12px rgba(0,0,0,.18)}
+  .app-header::before{content:'';position:absolute;top:-30px;right:60px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.05);pointer-events:none}
+  .header-brand{display:flex;align-items:baseline;gap:10px;flex:1}
+  .d-logo{font-family:var(--serif);color:#fff;font-size:20px;font-weight:400;letter-spacing:.2px}
+  .d-logo em{font-style:italic;font-weight:300}
+  .logo-divider{color:rgba(255,255,255,.3);font-size:14px}
+  .logo-sub{color:rgba(255,255,255,.55);font-size:11px;letter-spacing:.5px}
+  .logo-ver{color:rgba(255,255,255,.4);font-size:10px;letter-spacing:.3px;margin-left:6px;font-weight:400}
+  .header-actions{display:flex;gap:8px;align-items:center}
+  .hdr-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);color:#fff;height:32px;padding:0 12px;border-radius:20px;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:500;font-family:var(--font);transition:.2s;white-space:nowrap}
+  .hdr-btn:hover{background:rgba(255,255,255,.22)}
+
+  /* LAYOUT */
+  .d-layout{display:flex;padding-top:var(--header-h);min-height:100vh}
+  .d-sidebar{width:var(--sidebar-w);flex-shrink:0;position:fixed;top:var(--header-h);left:0;bottom:0;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;z-index:50}
+  .sidebar-section{padding:16px 12px 8px;font-size:9px;font-weight:700;color:var(--subtle);letter-spacing:1.2px;text-transform:uppercase}
+  .d-nav-item{display:flex;align-items:center;gap:11px;padding:10px 14px;margin:1px 8px;border-radius:var(--r-sm);cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;transition:.15s;user-select:none;border:none;background:none;width:calc(100% - 16px);text-align:left}
+  .d-nav-item:hover{background:var(--green-l);color:var(--green)}
+  .d-nav-item.active{background:var(--green-l);color:var(--green);font-weight:600}
+  .d-nav-item .ni{font-size:18px;flex-shrink:0;width:22px;text-align:center}
+  .sidebar-bottom{margin-top:auto;padding:12px;border-top:1px solid var(--border)}
+  .sidebar-ver{font-size:10px;color:var(--subtle);text-align:center;padding:6px 0}
+  .d-main{margin-left:var(--sidebar-w);flex:1;min-width:0;overflow-y:auto}
+  .d-view{display:none;padding:24px;max-width:1100px}
+  .d-view.active{display:block}
+
+  /* PAGE HEADERS */
+  .page-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+  .page-title{font-family:var(--serif);font-size:22px;font-weight:400}
+  .btn-primary{background:var(--green);color:#fff;border:none;padding:9px 20px;border-radius:50px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;font-family:var(--font);box-shadow:0 2px 8px rgba(26,107,74,.3);transition:.2s;white-space:nowrap}
+  .btn-primary:hover{background:var(--green-d);transform:translateY(-1px)}
+
+  /* TODAY */
+  .today-top{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:20px}
+  .stat-card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:16px 18px;box-shadow:var(--sh)}
+  .stat-card .sc-num{font-size:32px;font-weight:600;font-family:var(--serif);line-height:1}
+  .stat-card .sc-lbl{font-size:10px;color:var(--muted);margin-top:5px;letter-spacing:.8px;text-transform:uppercase}
+  .today-date-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:12px 18px;box-shadow:var(--sh)}
+  .dnav-btn{background:var(--green-l);border:1px solid var(--border);color:var(--green);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:.2s;flex-shrink:0}
+  .dnav-btn:hover{background:var(--green);color:#fff}
+  .date-info{flex:1}
+  .date-main{font-family:var(--serif);font-size:17px;font-weight:400;color:var(--text)}
+  .date-sub{font-size:11px;color:var(--muted);margin-top:2px}
+  .today-jump{background:var(--green);border:none;color:#fff;font-size:11px;font-weight:600;padding:5px 14px;border-radius:20px;cursor:pointer;font-family:var(--font);display:none}
+  .today-jump.show{display:inline-block}
+  .progress-wrap{background:var(--slate-l);border-radius:20px;height:7px;margin-top:8px;overflow:hidden}
+  .progress-bar{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--green-m),var(--green));transition:width .4s ease}
+  .progress-lbl{font-size:11px;color:var(--muted);margin-top:4px}
+  .swipe-tip{font-size:11px;color:var(--subtle);margin-bottom:10px;padding:6px 14px;background:var(--card);border-radius:var(--r-xs);border:1px solid var(--border);display:inline-block}
+  .today-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .slot-col{background:var(--card);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;box-shadow:var(--sh)}
+  .slot-col-hdr{background:var(--green);color:#fff;padding:10px 14px;font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .slot-col-body{padding:10px}
+  .d-timing-lbl{font-size:9px;font-weight:700;color:var(--subtle);letter-spacing:.8px;text-transform:uppercase;padding:4px 2px 5px;margin-top:4px}
+  .dose-card{background:var(--bg);border-radius:var(--r-sm);border:1px solid var(--border);padding:11px 12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;position:relative;transition:.2s;cursor:default}
+  .dose-card:last-child{margin-bottom:0}
+  .dose-card:hover{box-shadow:var(--sh-md)}
+  .dose-card.missed-highlight{border-left:3px solid var(--amber-m);background:linear-gradient(90deg,rgba(255,243,224,.5),var(--bg))}
+  .dose-check{width:30px;height:30px;border-radius:50%;border:2px solid var(--border-m);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:14px;transition:.2s;background:none;color:transparent;margin-top:1px}
+  .dose-check.taken{background:var(--green);border-color:var(--green);color:#fff}
+  .dose-check.skipped{background:var(--coral-l);border-color:var(--coral);color:var(--coral)}
+  .dose-check.pending:hover{border-color:var(--green);color:var(--green)}
+  .dose-body{flex:1;min-width:0}
+  .dose-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dose-name.s-taken{text-decoration:line-through;color:var(--muted)}
+  .dose-meta{font-size:11px;color:var(--muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .dose-taken-time{font-size:10px;color:var(--green);font-weight:600;margin-top:3px}
+  .dose-skip-reason{font-size:10px;color:var(--coral);margin-top:2px}
+  .dose-tag{font-size:9px;padding:2px 6px;border-radius:20px;font-weight:600;white-space:nowrap}
+  .tag-system{background:var(--purple-l);color:var(--purple)}
+  .tag-custom{background:var(--amber-l);color:var(--amber)}
+  .tag-oneday{background:var(--blue-l);color:var(--blue)}
+  .missed-badge{font-size:9px;font-weight:700;padding:2px 6px;background:var(--amber-l);color:var(--amber);border-radius:20px}
+  .dose-actions{display:flex;gap:5px;margin-top:6px}
+  .dose-action-btn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:var(--r-xs);font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font);transition:.2s}
+  .dose-action-btn:hover{border-color:var(--coral);color:var(--coral)}
+  .dose-action-btn.take:hover{border-color:var(--green);color:var(--green)}
+  .empty-slot{text-align:center;padding:20px;color:var(--subtle);font-size:12px}
+
+  /* CALENDAR */
+  .cal-layout{display:grid;grid-template-columns:1fr 340px;gap:20px}
+  .cal-panel{background:var(--card);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;box-shadow:var(--sh)}
+  .cal-nav-row{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)}
+  .cal-nav-btn{background:var(--bg);border:1px solid var(--border);color:var(--slate);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:.2s}
+  .cal-nav-btn:hover{background:var(--green-l);border-color:var(--green-m);color:var(--green)}
+  .cal-month-lbl{flex:1;text-align:center;font-family:var(--serif);font-size:17px;font-weight:400}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);padding:8px}
+  .cal-dow{text-align:center;font-size:9px;font-weight:700;color:var(--subtle);letter-spacing:.5px;padding:6px 0;text-transform:uppercase}
+  .cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border-radius:var(--r-xs);margin:2px;transition:.15s;font-size:12px;font-weight:500}
+  .cal-day:hover{background:var(--slate-l)}
+  .cal-day.other-month{color:var(--subtle)}
+  .cal-day.today-cal{background:var(--green-l);color:var(--green);font-weight:700}
+  .cal-day.selected-cal{background:var(--green);color:#fff}
+  /* dot styles defined in shared base */
+  .cal-detail-panel{background:var(--card);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden}
+  .cal-detail-hdr{padding:14px 16px;border-bottom:1px solid var(--border);font-family:var(--serif);font-size:15px;font-weight:400}
+  .cal-detail-body{padding:10px 12px;max-height:500px;overflow-y:auto}
+
+  /* PRESCRIPTIONS */
+  .rx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
+  .rx-card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;box-shadow:var(--sh)}
+  .rx-card-hdr{padding:14px 16px;display:flex;align-items:flex-start;gap:12px;border-bottom:1px solid var(--border)}
+  .rx-avatar{width:42px;height:42px;border-radius:11px;background:var(--blue-l);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .rx-info{flex:1;min-width:0}
+  .rx-doctor{font-size:15px;font-weight:600}
+  .rx-sub{font-size:11px;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+  .rx-status{font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap;align-self:flex-start}
+  .rx-status.active{background:var(--green-l);color:var(--green)}
+  .rx-status.completed{background:var(--slate-l);color:var(--slate-m)}
+  .rx-status.upcoming{background:var(--blue-l);color:var(--blue)}
+  .rx-meds-section{padding:10px 16px}
+  .rx-med-row{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--border)}
+  .rx-med-row:last-child{border-bottom:none}
+  .rx-med-dot{width:7px;height:7px;border-radius:50%;background:var(--green-m);flex-shrink:0}
+  .rx-med-dot.custom{background:var(--amber)}
+  .rx-med-name{font-size:13px;font-weight:500;flex:1}
+  .rx-med-detail{font-size:11px;color:var(--muted);text-align:right}
+  .rx-actions-row{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg)}
+  .rx-act-btn{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:var(--r-xs);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);transition:.2s}
+  .rx-act-btn:hover{border-color:var(--green-m);color:var(--green)}
+  .rx-act-btn.del:hover{border-color:var(--coral);color:var(--coral)}
+
+  /* MASTER */
+  .master-tabs{display:flex;background:var(--card);border-radius:var(--r) var(--r) 0 0;border:1px solid var(--border);border-bottom:none;overflow:hidden;margin-bottom:0}
+  .master-tab{flex:1;padding:12px;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;transition:.2s}
+  .master-tab.active{color:var(--green);border-bottom-color:var(--green);background:var(--green-l)}
+  .master-panel{background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);padding:16px}
+  .master-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+  .master-card{background:var(--bg);border-radius:var(--r-sm);border:1px solid var(--border);padding:13px 14px;display:flex;align-items:center;gap:11px}
+  .master-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  .master-icon.med{background:var(--green-l);color:var(--green)}
+  .master-icon.doc{background:var(--blue-l);color:var(--blue)}
+  .master-info{flex:1;min-width:0}
+  .master-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .master-meta{font-size:11px;color:var(--muted);margin-top:3px;display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+  .badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.3px;white-space:nowrap}
+  .badge-sys{background:var(--purple-l);color:var(--purple)}
+  .badge-type{background:var(--blue-l);color:var(--blue)}
+  .badge-spec{background:var(--amber-l);color:var(--amber)}
+  .icon-act{background:none;border:1px solid var(--border);color:var(--muted);width:28px;height:28px;border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;transition:.2s;flex-shrink:0}
+  .icon-act:hover{background:var(--green-l);color:var(--green);border-color:var(--green-m)}
+  .icon-act.del:hover{background:var(--coral-l);color:var(--coral);border-color:var(--coral)}
+
+  /* DESKTOP MODALS — centred */
+  .d-overlay{display:none;position:fixed;inset:0;background:rgba(10,20,40,.5);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:20px}
+  .d-overlay.open{display:flex}
+  .d-modal{background:var(--card);border-radius:16px;padding:28px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;animation:popIn .22s cubic-bezier(.34,1.15,.64,1);box-shadow:var(--sh-lg)}
+  .d-modal-wide{max-width:700px}
+  .modal-title{font-family:var(--serif);font-size:20px;font-weight:400;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+  .modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;border-radius:4px;transition:.2s}
+  .modal-close:hover{background:var(--bg);color:var(--coral)}
+  .form-grp{margin-bottom:14px}
+  .form-grp label{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:5px;letter-spacing:.8px;text-transform:uppercase}
+  .form-grp input,.form-grp select{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:var(--font);color:var(--text);background:var(--bg);outline:none;transition:.2s}
+  .form-grp input:focus,.form-grp select:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(26,107,74,.1)}
+  .form-row{display:flex;gap:12px}
+  .form-row .form-grp{flex:1}
+  .modal-btns{display:flex;gap:10px;margin-top:22px;justify-content:flex-end}
+  .btn-cancel{padding:10px 20px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:none;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--muted);transition:.2s}
+  .btn-cancel:hover{background:var(--bg)}
+  .btn-save{padding:10px 24px;background:var(--green);color:#fff;border:none;border-radius:var(--r-sm);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(26,107,74,.3);transition:.2s}
+  .btn-save:hover{background:var(--green-d)}
+  .divider{height:1px;background:var(--border);margin:18px 0}
+  .section-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px}
+  .med-entry-row{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;margin-bottom:10px;position:relative}
+  .med-entry-remove{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--subtle);cursor:pointer;font-size:14px;transition:.2s;line-height:1;padding:2px 5px;border-radius:4px}
+  .med-entry-remove:hover{color:var(--coral);background:var(--coral-l)}
+  .add-row-btn{width:100%;padding:9px;border:1.5px dashed var(--border-m);border-radius:var(--r-sm);background:none;font-family:var(--font);font-size:12px;color:var(--muted);cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:6px}
+  .add-row-btn:hover{border-color:var(--green-m);color:var(--green)}
+  .med-type-toggle{display:flex;gap:6px;margin-bottom:12px}
+  .med-type-btn{flex:1;padding:8px;border:1.5px solid var(--border);border-radius:var(--r-xs);font-size:12px;font-weight:500;text-align:center;cursor:pointer;transition:.2s;background:var(--card);color:var(--muted)}
+  .med-type-btn.active-master{background:var(--green-l);border-color:var(--green);color:var(--green)}
+  .med-type-btn.active-custom{background:var(--amber-l);border-color:var(--amber);color:var(--amber)}
+  .date-type-toggle{display:flex;gap:6px;margin-bottom:10px}
+  .date-type-btn{flex:1;padding:7px;border:1.5px solid var(--border);border-radius:var(--r-xs);font-size:12px;font-weight:500;text-align:center;cursor:pointer;transition:.2s;background:var(--card);color:var(--muted)}
+  .date-type-btn.active{background:var(--blue-l);border-color:var(--blue);color:var(--blue)}
+  .freq-grid-wrap{border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;margin-top:6px}
+  .freq-grid-table{width:100%;border-collapse:collapse}
+  .freq-grid-table th{padding:8px 10px;font-size:11px;font-weight:600;color:var(--green);text-align:center;background:var(--green-l);border-bottom:1px solid var(--border)}
+  .freq-grid-table th:first-child{text-align:left;color:var(--muted);background:var(--slate-l);width:72px;font-size:10px;letter-spacing:.5px;text-transform:uppercase}
+  .freq-grid-table td{padding:7px 8px;text-align:center;border-bottom:1px solid var(--border);vertical-align:middle}
+  .freq-grid-table td:first-child{font-size:11px;font-weight:600;color:var(--muted);background:var(--slate-l);text-align:left;padding-left:12px;letter-spacing:.3px;text-transform:uppercase}
+  .freq-grid-table tr:last-child td{border-bottom:none}
+  .freq-input{width:52px;padding:5px 6px;border:1.5px solid var(--border);border-radius:var(--r-xs);font-size:13px;font-family:var(--font);color:var(--text);background:var(--card);outline:none;text-align:center;transition:.2s}
+  .freq-input:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(26,107,74,.12)}
+  .freq-input::placeholder{color:var(--subtle);font-size:11px}
+  .freq-note{font-size:10px;color:var(--subtle);margin-top:5px;font-style:italic}
+  .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty-icon-wrap{width:64px;height:64px;background:var(--green-l);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px}
+  .empty-state h3{font-size:16px;font-weight:500;color:var(--text);margin-bottom:6px;font-family:var(--serif)}
+  .empty-state p{font-size:13px;line-height:1.6}
+
+  /* SKIP — desktop centred */
+  .d-skip-overlay{display:none;position:fixed;inset:0;background:rgba(10,20,40,.5);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:20px}
+  .d-skip-overlay.open{display:flex}
+  .skip-box{background:var(--card);border-radius:16px;padding:28px;width:100%;max-width:400px;animation:popIn .2s cubic-bezier(.34,1.15,.64,1);box-shadow:var(--sh-lg)}
+  .skip-title{font-family:var(--serif);font-size:18px;font-weight:400;margin-bottom:4px}
+  .skip-med-name{font-size:12px;color:var(--muted);margin-bottom:18px}
+  .reason-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+  .reason-opt{padding:12px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-weight:500;text-align:center;cursor:pointer;transition:.2s;background:var(--card);color:var(--text);line-height:1.4}
+  .reason-opt:hover{border-color:var(--coral);background:var(--coral-l);color:var(--coral)}
+  .reason-opt.sel{border-color:var(--coral);background:var(--coral-l);color:var(--coral)}
+  .reason-other-input{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:var(--font);color:var(--text);background:var(--bg);outline:none;margin-bottom:14px;display:none}
+  .reason-other-input.show{display:block}
+  .reason-other-input:focus{border-color:var(--coral)}
+  .skip-confirm-btn{width:100%;padding:12px;background:var(--coral);color:#fff;border:none;border-radius:var(--r-sm);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;transition:.2s}
+  .skip-confirm-btn:hover{background:#a93226}
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE — ≤768px
+═══════════════════════════════════════════════════════════ */
+@media(max-width:768px){
+  #mobile-root{display:flex;flex-direction:column;min-height:100vh}
+  :root{--r:14px;--r-sm:10px;--r-xs:7px;--bg:#f5f6f8}
+  .toast{bottom:72px}
+
+  .m-app{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg)}
+  .m-header{background:var(--green);padding:14px 20px 0;position:relative;overflow:hidden;flex-shrink:0}
+  .m-header::before{content:'';position:absolute;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.05)}
+  .m-header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;position:relative;z-index:1}
+  .m-logo{font-family:var(--serif);color:#fff;font-size:21px;font-weight:400}
+  .m-logo em{font-style:italic;font-weight:300}
+  .m-logo-sub{font-size:10px;color:rgba(255,255,255,.5);letter-spacing:.6px;margin-top:2px}
+  .m-logo-ver{font-size:9px;color:rgba(255,255,255,.35);margin-top:1px}
+  .m-hdr-icons{display:flex;gap:7px}
+  .m-hdr-icon{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;transition:.2s;user-select:none}
+  .m-hdr-icon:hover{background:rgba(255,255,255,.22)}
+
+  .m-bottom-nav{background:var(--card);border-top:1px solid var(--border);display:flex;flex-shrink:0;position:sticky;bottom:0;z-index:20;box-shadow:0 -2px 12px rgba(0,0,0,.07)}
+  .m-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 4px 7px;cursor:pointer;color:var(--subtle);font-size:9px;font-weight:500;letter-spacing:.3px;border-top:2.5px solid transparent;transition:.2s;user-select:none;text-align:center}
+  .m-nav-item.active{color:var(--green);border-top-color:var(--green)}
+  .m-nav-item .ni{font-size:18px;margin-bottom:2px;display:block}
+
+  .m-view{display:none;flex:1;overflow-y:auto;padding-bottom:16px}
+  .m-view.active{display:block}
+  .m-page-header{padding:16px 20px 10px;display:flex;justify-content:space-between;align-items:center}
+  .m-page-title{font-family:var(--serif);font-size:19px;font-weight:400}
+  .btn-primary{background:var(--green);color:#fff;border:none;padding:9px 16px;border-radius:50px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:var(--font);box-shadow:0 2px 8px rgba(26,107,74,.3);transition:.2s;white-space:nowrap}
+  .btn-primary:hover{background:var(--green-d)}
+
+  /* TODAY BANNER */
+  .m-today-banner{background:var(--green);padding:10px 20px 16px;position:relative;z-index:1}
+  .m-date-nav-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .m-dnav-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:.2s;flex-shrink:0}
+  .m-dnav-btn:hover{background:rgba(255,255,255,.28)}
+  .m-date-center{flex:1;text-align:center}
+  .m-date-main-lbl{color:#fff;font-family:var(--serif);font-size:17px;font-weight:400;line-height:1.2}
+  .m-date-sub-lbl{color:rgba(255,255,255,.6);font-size:10px;margin-top:2px;letter-spacing:.4px}
+  .m-today-jump{background:rgba(255,255,255,.18);border:none;color:#fff;font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;cursor:pointer;font-family:var(--font);letter-spacing:.3px;display:none}
+  .m-today-jump.show{display:inline-block}
+  .m-progress-wrap{background:rgba(0,0,0,.15);border-radius:20px;height:6px;margin:0 0 4px;overflow:hidden}
+  .m-progress-bar{height:100%;border-radius:20px;background:linear-gradient(90deg,#a8e6cf,#fff);transition:width .4s ease;min-width:0}
+  .m-progress-label{color:rgba(255,255,255,.75);font-size:10px;font-weight:600;letter-spacing:.3px;margin-bottom:6px}
+
+  .m-today-stats{display:flex;gap:8px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+  .m-t-stat{flex:1;text-align:center;padding:9px 4px;background:var(--bg);border-radius:var(--r-sm)}
+  .m-t-stat .n{font-size:20px;font-weight:600;font-family:var(--serif);line-height:1}
+  .m-t-stat .l{font-size:9px;color:var(--muted);margin-top:3px;letter-spacing:.5px;text-transform:uppercase}
+
+  .m-slot-section{padding:0 14px}
+  .m-slot-hdr{display:flex;align-items:center;gap:10px;padding:13px 0 7px;font-size:10px;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.8px}
+  .m-slot-hdr::after{content:'';flex:1;height:1px;background:var(--border)}
+  .m-timing-lbl{font-size:9px;font-weight:700;color:var(--subtle);letter-spacing:.7px;text-transform:uppercase;padding:3px 2px 5px;margin-top:2px}
+  .m-swipe-tip{text-align:center;font-size:11px;color:var(--subtle);padding:4px 0 8px;letter-spacing:.2px}
+
+  /* MOBILE DOSE CARDS */
+  .m-dose-card-wrap{position:relative;margin-bottom:8px;border-radius:var(--r);overflow:hidden}
+  .m-swipe-hint-taken{position:absolute;left:0;top:0;bottom:0;width:100%;background:var(--green);display:flex;align-items:center;padding-left:20px;color:#fff;font-size:12px;font-weight:600;gap:8px;border-radius:var(--r)}
+  .m-swipe-hint-skip{position:absolute;right:0;top:0;bottom:0;width:100%;background:var(--coral);display:flex;align-items:center;justify-content:flex-end;padding-right:20px;color:#fff;font-size:12px;font-weight:600;gap:8px;border-radius:var(--r)}
+  .m-dose-card{background:var(--card);border:1px solid var(--border);padding:12px 13px;display:flex;align-items:center;gap:11px;transition:transform .15s,box-shadow .2s;position:relative;z-index:1;touch-action:pan-y;user-select:none;border-radius:var(--r)}
+  .m-dose-card.missed-highlight{border-left:3px solid var(--amber-m);background:linear-gradient(90deg,rgba(255,243,224,.5),var(--card))}
+  .m-dose-check{width:34px;height:34px;border-radius:50%;border:2px solid var(--border-m);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:15px;transition:.2s;background:none;color:transparent}
+  .m-dose-check.taken{background:var(--green);border-color:var(--green);color:#fff}
+  .m-dose-check.skipped{background:var(--coral-l);border-color:var(--coral);color:var(--coral)}
+  .m-dose-check.pending:hover{border-color:var(--green);color:var(--green)}
+  .m-dose-info{flex:1;min-width:0}
+  .m-dose-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m-dose-name.taken-strike{text-decoration:line-through;color:var(--muted)}
+  .m-dose-sub{font-size:11px;color:var(--muted);margin-top:3px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .m-dose-taken-time{font-size:10px;color:var(--green);font-weight:600;margin-top:2px}
+  .m-dose-missed-badge{font-size:9px;font-weight:700;padding:2px 6px;background:var(--amber-l);color:var(--amber);border-radius:20px;white-space:nowrap}
+  .m-dose-tag{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;white-space:nowrap}
+  .m-tag-system{background:var(--purple-l);color:var(--purple)}
+  .m-tag-custom{background:var(--amber-l);color:var(--amber)}
+  .m-tag-oneday{background:var(--blue-l);color:var(--blue)}
+  .m-skip-btn{background:none;border:1px solid var(--border);color:var(--subtle);padding:4px 9px;border-radius:var(--r-xs);font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font);transition:.2s;white-space:nowrap;flex-shrink:0}
+  .m-skip-btn:hover{border-color:var(--coral);color:var(--coral)}
+  .m-empty-day{text-align:center;padding:48px 20px;color:var(--muted)}
+  .m-empty-icon{width:60px;height:60px;background:var(--green-l);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px}
+  .m-empty-day h3{font-size:15px;font-weight:500;color:var(--text);margin-bottom:5px;font-family:var(--serif)}
+  .m-empty-day p{font-size:12px;line-height:1.6}
+
+  /* MOBILE CALENDAR */
+  .m-cal-nav{display:flex;align-items:center;gap:10px;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--border)}
+  .m-cal-nav-btn{background:var(--bg);border:1px solid var(--border);color:var(--slate);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:.2s}
+  .m-cal-nav-btn:hover{background:var(--green-l);border-color:var(--green-m);color:var(--green)}
+  .m-cal-month{flex:1;text-align:center;font-family:var(--serif);font-size:16px;font-weight:400}
+  .m-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);background:var(--card);border-bottom:1px solid var(--border)}
+  .m-cal-dow{text-align:center;font-size:9px;font-weight:600;color:var(--subtle);letter-spacing:.5px;padding:8px 0;text-transform:uppercase}
+  .m-cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border-radius:var(--r-xs);margin:2px;transition:.15s;font-size:12px;font-weight:500}
+  .m-cal-day:hover{background:var(--slate-l)}
+  .m-cal-day.other-month{color:var(--subtle)}
+  .m-cal-day.today-cal{background:var(--green-l);color:var(--green);font-weight:700}
+  .m-cal-day.selected-cal{background:var(--green);color:#fff}
+  .m-cal-detail{padding:0 14px}
+  .m-cal-detail-title{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;padding:12px 0 7px}
+
+  /* MOBILE RX */
+  .m-rx-card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);margin:0 14px 12px;overflow:hidden;box-shadow:var(--sh)}
+  .m-rx-card-hdr{padding:13px 15px;display:flex;align-items:flex-start;gap:11px;border-bottom:1px solid var(--border)}
+  .m-rx-avatar{width:40px;height:40px;border-radius:11px;background:var(--blue-l);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  .m-rx-info{flex:1;min-width:0}
+  .m-rx-doctor{font-size:14px;font-weight:600}
+  .m-rx-sub{font-size:11px;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+  .m-rx-status{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;flex-shrink:0;white-space:nowrap}
+  .m-rx-status.active{background:var(--green-l);color:var(--green)}
+  .m-rx-status.completed{background:var(--slate-l);color:var(--slate-m)}
+  .m-rx-status.upcoming{background:var(--blue-l);color:var(--blue)}
+  .m-rx-meds{padding:8px 15px}
+  .m-rx-med-row{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--border)}
+  .m-rx-med-row:last-child{border-bottom:none}
+  .m-rx-med-dot{width:7px;height:7px;border-radius:50%;background:var(--green-m);flex-shrink:0}
+  .m-rx-med-dot.custom{background:var(--amber)}
+  .m-rx-med-name{font-size:13px;font-weight:500;flex:1}
+  .m-rx-med-detail{font-size:11px;color:var(--muted);text-align:right}
+  .m-rx-actions{display:flex;gap:7px;padding:9px 15px;border-top:1px solid var(--border);background:var(--bg)}
+  .m-rx-act-btn{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:var(--r-xs);font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font);transition:.2s;display:flex;align-items:center;gap:5px}
+  .m-rx-act-btn:hover{border-color:var(--green-m);color:var(--green)}
+  .m-rx-act-btn.del:hover{border-color:var(--coral);color:var(--coral)}
+
+  /* MOBILE MASTER */
+  .m-master-card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);margin:0 14px 9px;padding:12px 14px;display:flex;align-items:center;gap:11px;box-shadow:var(--sh)}
+  .master-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .master-icon.med{background:var(--green-l);color:var(--green)}
+  .master-icon.doc{background:var(--blue-l);color:var(--blue)}
+  .master-info{flex:1;min-width:0}
+  .master-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .master-meta{font-size:11px;color:var(--muted);margin-top:3px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.3px;white-space:nowrap}
+  .badge-sys{background:var(--purple-l);color:var(--purple)}
+  .badge-type{background:var(--blue-l);color:var(--blue)}
+  .badge-spec{background:var(--amber-l);color:var(--amber)}
+  .icon-act{background:none;border:1px solid var(--border);color:var(--muted);width:29px;height:29px;border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;transition:.2s;flex-shrink:0}
+  .icon-act:hover{background:var(--green-l);color:var(--green);border-color:var(--green-m)}
+  .icon-act.del:hover{background:var(--coral-l);color:var(--coral);border-color:var(--coral)}
+  .m-master-tabs{display:flex;background:var(--card);border-bottom:1px solid var(--border)}
+  .m-master-tab{flex:1;padding:11px;text-align:center;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;transition:.2s}
+  .m-master-tab.active{color:var(--green);border-bottom-color:var(--green)}
+
+  /* MOBILE MODALS — bottom sheet */
+  .m-overlay{display:none;position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:100;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+  .m-overlay.open{display:flex}
+  .m-modal{background:var(--card);border-radius:22px 22px 0 0;padding:22px 20px 30px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;animation:slideUp .25s cubic-bezier(.34,1.2,.64,1)}
+  .m-modal-handle{width:38px;height:4px;background:var(--border-m);border-radius:4px;margin:0 auto 18px}
+  .m-modal-title{font-family:var(--serif);font-size:20px;font-weight:400;margin-bottom:18px}
+  .form-grp{margin-bottom:13px}
+  .form-grp label{display:block;font-size:10px;font-weight:600;color:var(--muted);margin-bottom:5px;letter-spacing:.7px;text-transform:uppercase}
+  .form-grp input,.form-grp select{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:var(--font);color:var(--text);background:var(--bg);outline:none;transition:.2s}
+  .form-grp input:focus,.form-grp select:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(26,107,74,.1)}
+  .form-row{display:flex;gap:9px}
+  .form-row .form-grp{flex:1}
+  .m-modal-btns{display:flex;gap:9px;margin-top:20px}
+  .m-btn-cancel{flex:1;padding:11px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:none;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--muted)}
+  .m-btn-save{flex:2;padding:11px;background:var(--green);color:#fff;border:none;border-radius:var(--r-sm);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(26,107,74,.3)}
+  .m-btn-save:hover{background:var(--green-d)}
+  .divider{height:1px;background:var(--border);margin:14px 0}
+  .section-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin-bottom:9px}
+  .med-entry-row{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px;margin-bottom:9px;position:relative}
+  .med-entry-remove{position:absolute;top:9px;right:9px;background:none;border:none;color:var(--subtle);cursor:pointer;font-size:13px;transition:.2s;line-height:1;padding:2px 5px;border-radius:4px}
+  .med-entry-remove:hover{color:var(--coral);background:var(--coral-l)}
+  .add-row-btn{width:100%;padding:9px;border:1.5px dashed var(--border-m);border-radius:var(--r-sm);background:none;font-family:var(--font);font-size:12px;color:var(--muted);cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:6px}
+  .add-row-btn:hover{border-color:var(--green-m);color:var(--green)}
+  .med-type-toggle{display:flex;gap:6px;margin-bottom:8px}
+  .med-type-btn{flex:1;padding:7px;border:1.5px solid var(--border);border-radius:var(--r-xs);font-size:11px;font-weight:500;text-align:center;cursor:pointer;transition:.2s;background:var(--card);color:var(--muted)}
+  .med-type-btn.active-master{background:var(--green-l);border-color:var(--green);color:var(--green)}
+  .med-type-btn.active-custom{background:var(--amber-l);border-color:var(--amber);color:var(--amber)}
+  .date-type-toggle{display:flex;gap:6px;margin-bottom:8px}
+  .date-type-btn{flex:1;padding:6px;border:1.5px solid var(--border);border-radius:var(--r-xs);font-size:11px;font-weight:500;text-align:center;cursor:pointer;transition:.2s;background:var(--card);color:var(--muted)}
+  .date-type-btn.active{background:var(--blue-l);border-color:var(--blue);color:var(--blue)}
+  .freq-grid-wrap{border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;margin-top:6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .freq-grid-table{width:100%;border-collapse:collapse;min-width:260px}
+  .freq-grid-table th{padding:7px 4px;font-size:10px;font-weight:600;color:var(--green);text-align:center;background:var(--green-l);border-bottom:1px solid var(--border)}
+  .freq-grid-table th:first-child{text-align:left;color:var(--muted);background:var(--slate-l);width:56px;font-size:9px;letter-spacing:.4px;text-transform:uppercase}
+  .freq-grid-table td{padding:6px 3px;text-align:center;border-bottom:1px solid var(--border);vertical-align:middle}
+  .freq-grid-table td:first-child{font-size:10px;font-weight:600;color:var(--muted);background:var(--slate-l);text-align:left;padding-left:8px;text-transform:uppercase}
+  .freq-grid-table tr:last-child td{border-bottom:none}
+  .freq-input{width:42px;padding:5px 3px;border:1.5px solid var(--border);border-radius:var(--r-xs);font-size:12px;font-family:var(--font);color:var(--text);background:var(--card);outline:none;text-align:center;transition:.2s}
+  .freq-input:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(26,107,74,.12)}
+  .freq-input::placeholder{color:var(--subtle);font-size:10px}
+  .freq-note{font-size:10px;color:var(--subtle);margin-top:5px;font-style:italic}
+
+  /* SKIP — mobile bottom sheet */
+  .m-skip-overlay{display:none;position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:150;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+  .m-skip-overlay.open{display:flex}
+  .m-skip-box{background:var(--card);border-radius:22px 22px 0 0;padding:22px 20px 30px;width:100%;max-width:560px;animation:slideUp .2s cubic-bezier(.34,1.2,.64,1)}
+  .m-skip-handle{width:38px;height:4px;background:var(--border-m);border-radius:4px;margin:0 auto 16px}
+  .reason-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px}
+  .reason-opt{padding:12px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-weight:500;text-align:center;cursor:pointer;transition:.2s;background:var(--card);color:var(--text);line-height:1.4}
+  .reason-opt:hover{border-color:var(--coral);background:var(--coral-l);color:var(--coral)}
+  .reason-opt.sel{border-color:var(--coral);background:var(--coral-l);color:var(--coral)}
+  .reason-other-input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:var(--font);color:var(--text);background:var(--bg);outline:none;margin-bottom:14px;display:none}
+  .reason-other-input:focus{border-color:var(--coral)}
+  .reason-other-input.show{display:block}
+  .skip-confirm-btn{width:100%;padding:13px;background:var(--coral);color:#fff;border:none;border-radius:var(--r-sm);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer}
+  .skip-confirm-btn:hover{background:#a93226}
+
+  /* MOBILE BACKUP BAR */
+  .m-backup-bar{display:flex;gap:9px;padding:12px 14px;border-top:1px solid var(--border);margin-top:6px}
+  .m-backup-btn{flex:1;padding:9px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--card);font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;color:var(--text);display:flex;align-items:center;justify-content:center;gap:7px;transition:.2s}
+  .m-backup-btn:hover{border-color:var(--green-m);color:var(--green)}
+  .m-backup-btn.restore:hover{border-color:var(--amber);color:var(--amber)}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     DESKTOP ROOT
+═══════════════════════════════════════════════════════════ -->
+<div id="desktop-root">
+
+<header class="app-header">
+  <div class="header-brand">
+    <div class="d-logo">Med<em>Track</em></div>
+    <div class="logo-divider">|</div>
+    <div class="logo-sub">Smart Medicine Scheduler</div>
+    <div class="logo-ver">Ver: 2.5.081109</div>
+  </div>
+  <div class="header-actions">
+    <button class="hdr-btn" id="d-gdrive-btn" onclick="gdriveSignIn()">&#9729; Drive Sync</button>
+    <button class="hdr-btn" onclick="backupData()">&#8659; Backup</button>
+    <button class="hdr-btn" onclick="document.getElementById('file-input').click()">&#8657; Restore</button>
+  </div>
+</header>
+
+<div class="d-layout">
+  <aside class="d-sidebar">
+    <div class="sidebar-section">Navigation</div>
+    <button class="d-nav-item active" id="d-nav-today" onclick="switchView('today')"><span class="ni">&#9728;</span> Today</button>
+    <button class="d-nav-item" id="d-nav-calendar" onclick="switchView('calendar')"><span class="ni">&#128197;</span> Calendar</button>
+    <button class="d-nav-item" id="d-nav-rx" onclick="switchView('rx')"><span class="ni">&#128138;</span> Prescriptions</button>
+    <div class="sidebar-section">Master Data</div>
+    <button class="d-nav-item" id="d-nav-master-med" onclick="switchView('master-med')"><span class="ni">&#128137;</span> Medicines</button>
+    <button class="d-nav-item" id="d-nav-master-doc" onclick="switchView('master-doc')"><span class="ni">&#128100;</span> Doctors</button>
+    <div class="sidebar-bottom"><div class="sidebar-ver">MedTrack v2.5.081109</div></div>
+  </aside>
+
+  <main class="d-main">
+
+    <!-- TODAY -->
+    <div class="d-view active" id="d-view-today">
+      <div class="page-hdr">
+        <div class="page-title">Today's Schedule</div>
+        <span class="swipe-tip">&#8592; Drag left = Skip &nbsp;|&nbsp; Drag right = Taken &#8594;</span>
+      </div>
+      <div class="today-date-row">
+        <button class="dnav-btn" onclick="changeViewDate(-1)">&#8249;</button>
+        <div class="date-info">
+          <div class="date-main" id="d-today-main-lbl"></div>
+          <div class="date-sub" id="d-today-sub-lbl"></div>
+          <div class="progress-wrap"><div class="progress-bar" id="d-progress-bar" style="width:0%"></div></div>
+          <div class="progress-lbl" id="d-progress-lbl">0 of 0 doses taken</div>
+        </div>
+        <button class="today-jump" id="d-today-jump-btn" onclick="jumpToToday()">&#9651; Today</button>
+        <button class="dnav-btn" onclick="changeViewDate(1)">&#8250;</button>
+      </div>
+      <div class="today-top">
+        <div class="stat-card"><div class="sc-num" id="d-ts-total" style="color:var(--text)">0</div><div class="sc-lbl">Total Doses</div></div>
+        <div class="stat-card"><div class="sc-num" id="d-ts-taken" style="color:var(--green)">0</div><div class="sc-lbl">Taken</div></div>
+        <div class="stat-card"><div class="sc-num" id="d-ts-pending" style="color:var(--amber)">0</div><div class="sc-lbl">Pending</div></div>
+        <div class="stat-card"><div class="sc-num" id="d-ts-skipped" style="color:var(--coral)">0</div><div class="sc-lbl">Skipped</div></div>
+      </div>
+      <div class="today-cols" id="d-today-cols"></div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="d-view" id="d-view-calendar">
+      <div class="page-hdr">
+        <div class="page-title">Calendar</div>
+        <button class="btn-primary" onclick="printCurrentMedReport()">&#128438; Current Medicines Report</button>
+      </div>
+      <div class="cal-layout">
+        <div class="cal-panel">
+          <div class="cal-nav-row">
+            <button class="cal-nav-btn" onclick="changeCalMonth(-1)">&#8249;</button>
+            <div class="cal-month-lbl" id="d-cal-month-label"></div>
+            <button class="cal-nav-btn" onclick="changeCalMonth(1)">&#8250;</button>
+            <button class="cal-nav-btn" onclick="jumpCalToToday()" title="Go to Today" style="font-size:11px;font-weight:700;width:auto;padding:0 10px;border-radius:20px;background:var(--green-l);border-color:var(--green-m);color:var(--green)">Today</button>
+          </div>
+          <div class="cal-grid" id="d-cal-grid"></div>
+        </div>
+        <div class="cal-detail-panel">
+          <div class="cal-detail-hdr" id="d-cal-detail-hdr">Select a day</div>
+          <div class="cal-detail-body" id="d-cal-detail-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRESCRIPTIONS -->
+    <div class="d-view" id="d-view-rx">
+      <div class="page-hdr">
+        <div class="page-title">Prescriptions</div>
+        <button class="btn-primary" onclick="openRxModal()">&#43; Add Prescription</button>
+      </div>
+      <div class="rx-grid" id="d-rx-list"></div>
+    </div>
+
+    <!-- MEDICINE MASTER -->
+    <div class="d-view" id="d-view-master-med">
+      <div class="page-hdr">
+        <div class="page-title">Medicine Master</div>
+        <button class="btn-primary" onclick="openMedModal()">&#43; Add Medicine</button>
+      </div>
+      <div class="master-grid" id="d-master-med-list"></div>
+    </div>
+
+    <!-- DOCTOR MASTER -->
+    <div class="d-view" id="d-view-master-doc">
+      <div class="page-hdr">
+        <div class="page-title">Doctor Master</div>
+        <button class="btn-primary" onclick="openDocModal()">&#43; Add Doctor</button>
+      </div>
+      <div class="master-grid" id="d-master-doc-list"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- DESKTOP SKIP -->
+<div class="d-skip-overlay" id="d-skip-overlay">
+  <div class="skip-box">
+    <div class="skip-title">Why skipping?</div>
+    <div class="skip-med-name" id="d-skip-med-name"></div>
+    <div class="reason-grid">
+      <div class="reason-opt" onclick="selReason(this,'Forgot')">&#128149;<br>Forgot</div>
+      <div class="reason-opt" onclick="selReason(this,'Side effect')">&#128164;<br>Side effect</div>
+      <div class="reason-opt" onclick="selReason(this,'Doctor advised stop')">&#128104;&#8205;&#9877;&#65039;<br>Doctor advised stop</div>
+      <div class="reason-opt" onclick="selReason(this,'Other')">&#9997;<br>Other</div>
+    </div>
+    <input class="reason-other-input" id="reason-other-input" type="text" placeholder="Describe reason…">
+    <button class="skip-confirm-btn" onclick="confirmSkip()">Confirm Skip</button>
+  </div>
+</div>
+
+<!-- DESKTOP MEDICINE MODAL -->
+<div class="d-overlay" id="d-med-modal" onclick="handleDOvClick(event,'d-med-modal')">
+  <div class="d-modal">
+    <div class="modal-title"><span id="d-med-modal-title">Add Medicine</span><button class="modal-close" onclick="closeDModal('d-med-modal')">&#10005;</button></div>
+    <div class="form-row">
+      <div class="form-grp"><label>Brand / Medicine Name *</label><input type="text" id="mm-name" placeholder="e.g. Crocin"></div>
+      <div class="form-grp"><label>Generic Name</label><input type="text" id="mm-generic" placeholder="e.g. Paracetamol"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-grp"><label>Medicine System</label><select id="mm-system"><option value="">— Select —</option><option>Allopathic</option><option>Ayurveda</option><option>Yoga &amp; Naturopathy</option><option>Unani</option><option>Siddha</option><option>Homeopathy</option></select></div>
+      <div class="form-grp"><label>Type</label><select id="mm-type"><option value="">— Select —</option><option>Tablet</option><option>Capsule</option><option>Syrup</option><option>Powder</option><option>Drops</option><option>Cream/Ointment</option><option>Injection</option><option>Inhaler</option><option>Patch</option><option>Prepared/Compound</option><option>Other</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-grp"><label>Dosage Unit</label><input type="text" id="mm-unit" placeholder="e.g. 500mg, 5ml"></div>
+      <div class="form-grp"><label>Notes</label><input type="text" id="mm-notes" placeholder="Storage, precautions…"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeDModal('d-med-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveMedMaster()">Save Medicine</button>
+    </div>
+  </div>
+</div>
+
+<!-- DESKTOP DOCTOR MODAL -->
+<div class="d-overlay" id="d-doc-modal" onclick="handleDOvClick(event,'d-doc-modal')">
+  <div class="d-modal">
+    <div class="modal-title"><span id="d-doc-modal-title">Add Doctor</span><button class="modal-close" onclick="closeDModal('d-doc-modal')">&#10005;</button></div>
+    <div class="form-grp"><label>Doctor Name *</label><input type="text" id="dm-name" placeholder="e.g. Dr. Ramesh Kumar"></div>
+    <div class="form-row">
+      <div class="form-grp"><label>Specialization</label><input type="text" id="dm-spec" placeholder="e.g. Cardiologist"></div>
+      <div class="form-grp"><label>Medicine System</label><select id="dm-system"><option value="">— Select —</option><option>Allopathic</option><option>Ayurveda</option><option>Yoga &amp; Naturopathy</option><option>Unani</option><option>Siddha</option><option>Homeopathy</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-grp"><label>Hospital / Clinic</label><input type="text" id="dm-hospital" placeholder="e.g. Apollo Hospital"></div>
+      <div class="form-grp"><label>City</label><input type="text" id="dm-city" placeholder="e.g. Chennai"></div>
+    </div>
+    <div class="form-grp"><label>Phone (optional)</label><input type="text" id="dm-phone" placeholder="e.g. 9876543210"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeDModal('d-doc-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveDocMaster()">Save Doctor</button>
+    </div>
+  </div>
+</div>
+
+<!-- DESKTOP RX MODAL -->
+<div class="d-overlay" id="d-rx-modal" onclick="handleDOvClick(event,'d-rx-modal')">
+  <div class="d-modal d-modal-wide">
+    <div class="modal-title"><span id="d-rx-modal-title">New Prescription</span><button class="modal-close" onclick="closeDModal('d-rx-modal')">&#10005;</button></div>
+    <div class="form-row">
+      <div class="form-grp" style="flex:2"><label>Doctor *</label><select id="rx-doctor-sel"><option value="">— Select doctor —</option></select></div>
+      <div class="form-grp"><label>Start Date *</label><input type="date" id="rx-start"></div>
+    </div>
+    <div class="form-grp"><label>Notes / Visit Reason</label><input type="text" id="rx-notes" placeholder="e.g. Follow-up, fever, check-up"></div>
+    <div class="divider"></div>
+    <div class="section-label">Medicines in this Prescription</div>
+    <div id="rx-med-entries"></div>
+    <button class="add-row-btn" onclick="addRxMedRow()">&#43; Add Medicine Row</button>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeDModal('d-rx-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveRx()">Save Prescription</button>
+    </div>
+  </div>
+</div>
+
+<!-- DESKTOP QUICK ADD -->
+<div class="d-overlay" id="d-quick-med-modal" onclick="handleDOvClick(event,'d-quick-med-modal')">
+  <div class="d-modal" style="max-width:480px">
+    <div class="modal-title"><span>Quick Add to Master</span><button class="modal-close" onclick="closeDModal('d-quick-med-modal')">&#10005;</button></div>
+    <div class="form-row">
+      <div class="form-grp"><label>Brand Name *</label><input type="text" id="qm-name" placeholder="e.g. Hamdard Safi"></div>
+      <div class="form-grp"><label>Generic Name</label><input type="text" id="qm-generic" placeholder="e.g. Blood purifier"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-grp"><label>Medicine System</label><select id="qm-system"><option value="">— Select —</option><option>Allopathic</option><option>Ayurveda</option><option>Yoga &amp; Naturopathy</option><option>Unani</option><option>Siddha</option><option>Homeopathy</option></select></div>
+      <div class="form-grp"><label>Type</label><select id="qm-type"><option value="">— Select —</option><option>Tablet</option><option>Capsule</option><option>Syrup</option><option>Powder</option><option>Drops</option><option>Prepared/Compound</option><option>Other</option></select></div>
+    </div>
+    <div class="form-grp"><label>Dosage Unit</label><input type="text" id="qm-unit" placeholder="e.g. 10ml, 500mg"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeDModal('d-quick-med-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveQuickMed()">Add &amp; Select</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /desktop-root -->
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     MOBILE ROOT
+═══════════════════════════════════════════════════════════ -->
+<div id="mobile-root">
+<div class="m-app">
+
+<header class="m-header">
+  <div class="m-header-top">
+    <div>
+      <div class="m-logo">Med<em>Track</em></div>
+      <div class="m-logo-sub">Smart Medicine Scheduler</div>
+      <div class="m-logo-ver">Ver: 2.5.081109</div>
+    </div>
+    <div class="m-hdr-icons">
+      <div class="m-hdr-icon" id="m-gdrive-btn" title="Drive Sync" onclick="gdriveSignIn()">&#9729;</div>
+      <div class="m-hdr-icon" title="Backup" onclick="backupData()">&#8659;</div>
+      <div class="m-hdr-icon" title="Restore" onclick="document.getElementById('file-input').click()">&#8657;</div>
+    </div>
+  </div>
+</header>
+
+<!-- TODAY VIEW -->
+<div class="m-view active" id="m-view-today">
+  <div class="m-today-banner">
+    <div class="m-date-nav-row">
+      <button class="m-dnav-btn" onclick="changeViewDate(-1)">&#8249;</button>
+      <div class="m-date-center">
+        <div class="m-date-main-lbl" id="m-today-main-lbl"></div>
+        <div class="m-date-sub-lbl" id="m-today-sub-lbl"></div>
+      </div>
+      <button class="m-today-jump" id="m-today-jump-btn" onclick="jumpToToday()">Today</button>
+      <button class="m-dnav-btn" onclick="changeViewDate(1)">&#8250;</button>
+    </div>
+    <div class="m-progress-label" id="m-progress-label">0 of 0 doses taken</div>
+    <div class="m-progress-wrap"><div class="m-progress-bar" id="m-progress-bar" style="width:0%"></div></div>
+  </div>
+  <div class="m-today-stats">
+    <div class="m-t-stat"><div class="n" id="m-ts-total" style="color:var(--text)">0</div><div class="l">Total</div></div>
+    <div class="m-t-stat"><div class="n" id="m-ts-taken" style="color:var(--green)">0</div><div class="l">Taken</div></div>
+    <div class="m-t-stat"><div class="n" id="m-ts-pending" style="color:var(--amber)">0</div><div class="l">Pending</div></div>
+    <div class="m-t-stat"><div class="n" id="m-ts-skipped" style="color:var(--coral)">0</div><div class="l">Skipped</div></div>
+  </div>
+  <div class="m-swipe-tip">&#8592; Swipe left to skip &nbsp;|&nbsp; Swipe right to mark taken &#8594;</div>
+  <div class="m-slot-section" id="m-today-slots"></div>
+</div>
+
+<!-- CALENDAR VIEW -->
+<div class="m-view" id="m-view-calendar">
+  <div class="m-cal-nav">
+    <button class="m-cal-nav-btn" onclick="changeCalMonth(-1)">&#8249;</button>
+    <div class="m-cal-month" id="m-cal-month-label"></div>
+    <button class="m-cal-nav-btn" onclick="changeCalMonth(1)">&#8250;</button>
+  </div>
+  <div class="m-cal-grid" id="m-cal-grid"></div>
+  <div class="m-cal-detail" id="m-cal-detail"></div>
+</div>
+
+<!-- PRESCRIPTIONS VIEW -->
+<div class="m-view" id="m-view-rx">
+  <div class="m-page-header">
+    <div class="m-page-title">Prescriptions</div>
+    <div style="display:flex;gap:7px">
+      <button class="btn-primary" style="background:var(--blue);box-shadow:0 2px 8px rgba(26,74,138,.3)" onclick="printCurrentMedReport()">&#128438; Report</button>
+      <button class="btn-primary" onclick="openRxModal()">&#43; Add Rx</button>
+    </div>
+  </div>
+  <div id="m-rx-list"></div>
+  <div style="padding:0 14px">
+    <div class="m-backup-bar">
+      <button class="m-backup-btn" onclick="backupData()">&#8659; Backup</button>
+      <button class="m-backup-btn restore" onclick="document.getElementById('file-input').click()">&#8657; Restore</button>
+    </div>
+  </div>
+</div>
+
+<!-- MASTER VIEW -->
+<div class="m-view" id="m-view-master">
+  <div class="m-page-header">
+    <div class="m-page-title">Master Data</div>
+    <button class="btn-primary" id="m-master-add-btn" onclick="masterAddClick()">&#43; Add</button>
+  </div>
+  <div class="m-master-tabs">
+    <div class="m-master-tab active" id="m-mtab-med" onclick="switchMasterTab('med')">&#128138; Medicines</div>
+    <div class="m-master-tab" id="m-mtab-doc" onclick="switchMasterTab('doc')">&#128100; Doctors</div>
+  </div>
+  <div id="m-master-med-list"></div>
+  <div id="m-master-doc-list" style="display:none"></div>
+</div>
+
+<nav class="m-bottom-nav">
+  <div class="m-nav-item active" id="m-nav-today" onclick="switchView('today')"><span class="ni">&#9728;</span>Today</div>
+  <div class="m-nav-item" id="m-nav-calendar" onclick="switchView('calendar')"><span class="ni">&#128197;</span>Calendar</div>
+  <div class="m-nav-item" id="m-nav-rx" onclick="switchView('rx')"><span class="ni">&#128138;</span>Prescriptions</div>
+  <div class="m-nav-item" id="m-nav-master" onclick="switchView('master')"><span class="ni">&#128193;</span>Master</div>
+</nav>
+</div><!-- /m-app -->
+
+<!-- MOBILE SKIP -->
+<div class="m-skip-overlay" id="m-skip-overlay">
+  <div class="m-skip-box">
+    <div class="m-skip-handle"></div>
+    <div style="font-family:var(--serif);font-size:18px;font-weight:400;margin-bottom:5px">Why are you skipping?</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px" id="m-skip-med-name"></div>
+    <div class="reason-grid">
+      <div class="reason-opt" onclick="selReason(this,'Forgot')">&#128149;<br>Forgot</div>
+      <div class="reason-opt" onclick="selReason(this,'Side effect')">&#128164;<br>Side effect</div>
+      <div class="reason-opt" onclick="selReason(this,'Doctor advised stop')">&#128104;&#8205;&#9877;&#65039;<br>Doctor advised stop</div>
+      <div class="reason-opt" onclick="selReason(this,'Other')">&#9997;<br>Other</div>
+    </div>
+    <input class="reason-other-input" id="reason-other-input-m" type="text" placeholder="Describe reason…">
+    <button class="skip-confirm-btn" onclick="confirmSkip()">Confirm Skip</button>
+  </div>
+</div>
+
+<!-- MOBILE MEDICINE MODAL -->
+<div class="m-overlay" id="m-med-modal" onclick="handleMOvClick(event,'m-med-modal')">
+  <div class="m-modal">
+    <div class="m-modal-handle"></div>
+    <div class="m-modal-title" id="m-med-modal-title">Add Medicine</div>
+    <div class="form-row">
+      <div class="form-grp"><label>Brand / Medicine Name *</label><input type="text" id="mm-name-m" placeholder="e.g. Crocin"></div>
+      <div class="form-grp"><label>Generic Name</label><input type="text" id="mm-generic-m" placeholder="e.g. Paracetamol"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-grp"><label>Medicine System</label><select id="mm-system-m"><option value="">— Select —</option><option>Allopathic</option><option>Ayurveda</option><option>Yoga &amp; Naturopathy</option><option>Unani</option><option>Siddha</option><option>Homeopathy</option></select></div>
+      <div class="form-grp"><label>Type</label><select id="mm-type-m"><option value="">— Select —</option><option>Tablet</option><option>Capsule</option><option>Syrup</option><option>Powder</option><option>Drops</option><option>Cream/Ointment</option><option>Injection</option><option>Inhaler</option><option>Patch</option><option>Prepared/Compound</option><option>Other</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-grp"><label>Dosage Unit</label><input type="text" id="mm-unit-m" placeholder="e.g. 500mg, 5ml"></div>
+      <div class="form-grp"><label>Notes</label><input type="text" id="mm-notes-m" placeholder="Storage, precautions…"></div>
+    </div>
+    <div class="m-modal-btns">
+      <button class="m-btn-cancel" onclick="closeMModal('m-med-modal')">Cancel</button>
+      <button class="m-btn-save" onclick="saveMedMaster()">Save Medicine</button>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE DOCTOR MODAL -->
+<div class="m-overlay" id="m-doc-modal" onclick="handleMOvClick(event,'m-doc-modal')">
+  <div class="m-modal">
+    <div class="m-modal-handle"></div>
+    <div class="m-modal-title" id="m-doc-modal-title">Add Doctor</div>
+    <div class="form-grp"><label>Doctor Name *</label><input type="text" id="dm-name-m" placeholder="e.g. Dr. Ramesh Kumar"></div>
+    <div class="form-row">
+      <div class="form-grp"><label>Specialization</label><input type="text" id="dm-spec-m" placeholder="e.g. Cardiologist"></div>
+      <div class="form-grp"><label>Medicine System</label><select id="dm-system-m"><option value="">— Select —</option><option>Allopathic</option><option>Ayurveda</option><option>Yoga &amp; Naturopathy</option><option>Unani</option><option>Siddha</option><option>Homeopathy</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-grp"><label>Hospital / Clinic</label><input type="text" id="dm-hospital-m" placeholder="e.g. Apollo Hospital"></div>
+      <div class="form-grp"><label>City</label><input type="text" id="dm-city-m" placeholder="e.g. Chennai"></div>
+    </div>
+    <div class="form-grp"><label>Phone (optional)</label><input type="text" id="dm-phone-m" placeholder="e.g. 9876543210"></div>
+    <div class="m-modal-btns">
+      <button class="m-btn-cancel" onclick="closeMModal('m-doc-modal')">Cancel</button>
+      <button class="m-btn-save" onclick="saveDocMaster()">Save Doctor</button>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE RX MODAL -->
+<div class="m-overlay" id="m-rx-modal" onclick="handleMOvClick(event,'m-rx-modal')">
+  <div class="m-modal">
+    <div class="m-modal-handle"></div>
+    <div class="m-modal-title" id="m-rx-modal-title">New Prescription</div>
+    <div class="form-row">
+      <div class="form-grp" style="flex:2"><label>Doctor *</label><select id="m-rx-doctor-sel"><option value="">— Select doctor —</option></select></div>
+      <div class="form-grp" style="flex:1"><label>Start Date *</label><input type="date" id="m-rx-start"></div>
+    </div>
+    <div class="form-grp"><label>Notes / Visit Reason</label><input type="text" id="m-rx-notes" placeholder="e.g. Follow-up, fever"></div>
+    <div class="divider"></div>
+    <div class="section-label">Medicines in this Prescription</div>
+    <div id="m-rx-med-entries"></div>
+    <button class="add-row-btn" onclick="addRxMedRow()">&#43; Add Medicine Row</button>
+    <div class="m-modal-btns">
+      <button class="m-btn-cancel" onclick="closeMModal('m-rx-modal')">Cancel</button>
+      <button class="m-btn-save" onclick="saveRx()">Save Prescription</button>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE QUICK ADD -->
+<div class="m-overlay" id="m-quick-med-modal" onclick="handleMOvClick(event,'m-quick-med-modal')">
+  <div class="m-modal">
+    <div class="m-modal-handle"></div>
+    <div class="m-modal-title">Quick Add to Master</div>
+    <div class="form-row">
+      <div class="form-grp"><label>Brand Name *</label><input type="text" id="qm-name-m" placeholder="e.g. Hamdard Safi"></div>
+      <div class="form-grp"><label>Generic Name</label><input type="text" id="qm-generic-m" placeholder="e.g. Blood purifier"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-grp"><label>Medicine System</label><select id="qm-system-m"><option value="">— Select —</option><option>Allopathic</option><option>Ayurveda</option><option>Yoga &amp; Naturopathy</option><option>Unani</option><option>Siddha</option><option>Homeopathy</option></select></div>
+      <div class="form-grp"><label>Type</label><select id="qm-type-m"><option value="">— Select —</option><option>Tablet</option><option>Capsule</option><option>Syrup</option><option>Powder</option><option>Drops</option><option>Cream/Ointment</option><option>Prepared/Compound</option><option>Other</option></select></div>
+    </div>
+    <div class="form-grp"><label>Dosage Unit</label><input type="text" id="qm-unit-m" placeholder="e.g. 10ml"></div>
+    <div class="m-modal-btns">
+      <button class="m-btn-cancel" onclick="closeMModal('m-quick-med-modal')">Cancel</button>
+      <button class="m-btn-save" onclick="saveQuickMed()">Add &amp; Select</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mobile-root -->
+
+<!-- SHARED CONFIRM + TOAST -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-ico">&#128465;</div>
+    <h3 id="confirm-title">Delete?</h3>
+    <p id="confirm-msg">This cannot be undone.</p>
+    <div class="confirm-btns">
+      <button class="btn-keep" onclick="closeConfirm()">Keep</button>
+      <button class="btn-del" id="btn-confirm-del">Delete</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<input type="file" id="file-input" accept=".json" onchange="restoreData(event)">
+
+<script>
+const APP_VER = '2.5.081109';
+
+// ── DETECT PLATFORM ──
+function isMobile(){ return window.innerWidth <= 768; }
+
+// ── DB ──
+let db;
+const SLOTS = ['Morning','Afternoon','Evening','Night'];
+const MED_SYSTEMS = ['Allopathic','Ayurveda','Yoga & Naturopathy','Unani','Siddha','Homeopathy'];
+const SLOT_END_HOUR = {Morning:12, Afternoon:17, Evening:20, Night:24};
+
+function initDB(){
+  return new Promise((res,rej)=>{
+    let r = indexedDB.open('MedTrackV6',1);
+    r.onupgradeneeded = e => {
+      let d = e.target.result;
+      ['medicines','doctors','prescriptions'].forEach(s=>{
+        if(!d.objectStoreNames.contains(s)) d.createObjectStore(s,{keyPath:'id',autoIncrement:true});
+      });
+      if(!d.objectStoreNames.contains('logs')){
+        let s = d.createObjectStore('logs',{keyPath:'id',autoIncrement:true});
+        s.createIndex('dateKey','dateKey',{unique:false});
+      }
+    };
+    r.onsuccess = e=>{ db=e.target.result; res(); };
+    r.onerror = ()=>rej();
+  });
+}
+const dbGet   = s => new Promise(r=>{ let t=db.transaction(s,'readonly'); let q=t.objectStore(s).getAll(); q.onsuccess=()=>r(q.result||[]); });
+const dbAdd   = (s,o) => new Promise(r=>{ let t=db.transaction(s,'readwrite'); let q=t.objectStore(s).add(o); q.onsuccess=()=>r(q.result); });
+const dbPut   = (s,o) => new Promise(r=>{ let t=db.transaction(s,'readwrite'); t.objectStore(s).put(o); t.oncomplete=()=>r(); });
+const dbDel   = (s,id) => new Promise(r=>{ let t=db.transaction(s,'readwrite'); t.objectStore(s).delete(id); t.oncomplete=()=>r(); });
+const dbClear = s => new Promise(r=>{ let t=db.transaction(s,'readwrite'); t.objectStore(s).clear(); t.oncomplete=()=>r(); });
+const dbByIdx = (s,idx,val) => new Promise(r=>{ let t=db.transaction(s,'readonly'); let q=t.objectStore(s).index(idx).getAll(val); q.onsuccess=()=>r(q.result||[]); });
+
+// ── UTILS ──
+function toDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function addDays(ds,n){ let d=new Date(ds+'T00:00:00'); d.setDate(d.getDate()+n); return toDateStr(d); }
+function today(){ return toDateStr(new Date()); }
+function fmtFull(d){ return d.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
+function fmtShort(d){ return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function cap(s){ return s?s.charAt(0).toUpperCase()+s.slice(1):''; }
+function nowTimeStr(){ let n=new Date(); return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'); }
+function fmtTime12(t){ if(!t)return ''; let[h,m]=t.split(':'); h=parseInt(h); let a=h>=12?'PM':'AM'; h=h%12||12; return h+':'+m+' '+a; }
+function isMissed(slot,dateStr){ if(dateStr!==today())return false; return new Date().getHours()>=SLOT_END_HOUR[slot]; }
+
+// ── SCHEDULE (v2.5 grid model) ──
+function generateSchedule(rx){
+  let doses=[];
+  (rx.meds||[]).forEach(m=>{
+    if(m.dateType==='specific'){
+      let slot=m.specificSlot||'Morning', timing=m.specificTiming||'before', qty=m.specificQty||'1';
+      doses.push({rxId:rx.id,medId:m.medId||null,medName:m.medName,qty,timing,doctor:rx.doctorName,slot,date:m.specificDate,isCustom:!!m.isCustom,isOneDay:true,system:m.system||''});
+    } else {
+      let freq=m.freq||{};
+      for(let i=0;i<(m.duration||1);i++){
+        let d=addDays(rx.startDate,i);
+        SLOTS.forEach(slot=>{
+          let sf=freq[slot]||{};
+          ['before','after'].forEach(timing=>{
+            let qty=sf[timing];
+            if(qty&&qty.toString().trim()!=='')
+              doses.push({rxId:rx.id,medId:m.medId||null,medName:m.medName,qty:qty.toString(),timing,doctor:rx.doctorName,slot,date:d,isCustom:!!m.isCustom,isOneDay:false,system:m.system||''});
+          });
+        });
+      }
+    }
+  });
+  return doses;
+}
+function doseKey(rxId,medName,slot,timing,dateStr){ return `${rxId}_${medName}_${slot}_${timing}_${dateStr}`; }
+
+async function getDosesForDate(dateStr){
+  let prescriptions=await dbGet('prescriptions');
+  let logs=await dbByIdx('logs','dateKey',dateStr);
+  let logMap={}; logs.forEach(l=>logMap[l.doseKey]=l);
+  let doses=[];
+  prescriptions.forEach(rx=>{
+    generateSchedule(rx).filter(s=>s.date===dateStr).forEach(s=>{
+      let key=doseKey(rx.id,s.medName,s.slot,s.timing,dateStr);
+      let log=logMap[key];
+      doses.push({...s,doseKey:key,status:log?log.status:'pending',takenAt:log?log.takenAt:null,skipReason:log?log.skipReason:null});
+    });
+  });
+  doses.sort((a,b)=>{ let si=SLOTS.indexOf(a.slot)-SLOTS.indexOf(b.slot); if(si!==0)return si; return a.timing==='before'?-1:1; });
+  return doses;
+}
+
+async function markDose(key,rxId,dateStr,dose,newStatus,skipReason){
+  let logs=await dbByIdx('logs','dateKey',dateStr);
+  let existing=logs.find(l=>l.doseKey===key);
+  let takenAt=newStatus==='taken'?nowTimeStr():null;
+  if(existing){ existing.status=newStatus; if(takenAt)existing.takenAt=takenAt; existing.skipReason=skipReason||null; await dbPut('logs',existing); }
+  else await dbAdd('logs',{doseKey:key,rxId,dateKey:dateStr,medName:dose.medName,slot:dose.slot,timing:dose.timing,status:newStatus,takenAt,skipReason:skipReason||null,ts:Date.now()});
+  gdriveSaveIfConnected();
+}
+
+// ── VIEW STATE ──
+let viewDateStr=today(), activeView='today', calDate=new Date(), calSelectedDate=today(), activeMasterTab='med';
+let activeDesktopViews=['today','calendar','rx','master-med','master-doc'];
+
+// ── DATE NAV (shared) ──
+function changeViewDate(dir){
+  let d=new Date(viewDateStr+'T00:00:00'); d.setDate(d.getDate()+dir);
+  viewDateStr=toDateStr(d); renderToday();
+}
+function jumpToToday(){ viewDateStr=today(); renderToday(); }
+
+// ── SWITCH VIEW ──
+function switchView(v){
+  activeView=v;
+  if(isMobile()){
+    ['today','calendar','rx','master'].forEach(n=>{
+      document.getElementById('m-view-'+n)?.classList.toggle('active',n===v);
+      document.getElementById('m-nav-'+n)?.classList.toggle('active',n===v);
+    });
+    if(v==='today') renderToday();
+    else if(v==='calendar') renderCalendar();
+    else if(v==='rx') renderRx();
+    else if(v==='master'){ renderMedMaster(); renderDocMaster(); }
+  } else {
+    // desktop: map 'master' to 'master-med'
+    let dv = (v==='master')?'master-med':v;
+    activeDesktopViews.forEach(n=>{
+      document.getElementById('d-view-'+n)?.classList.toggle('active',n===dv);
+      document.getElementById('d-nav-'+n)?.classList.toggle('active',n===dv);
+    });
+    if(v==='today') renderToday();
+    else if(v==='calendar') renderCalendar();
+    else if(v==='rx') renderRx();
+    else if(v==='master-med'||v==='master') renderMedMaster();
+    else if(v==='master-doc') renderDocMaster();
+  }
+}
+
+// ── MASTER TAB (mobile) ──
+function switchMasterTab(tab){
+  activeMasterTab=tab;
+  document.getElementById('m-mtab-med')?.classList.toggle('active',tab==='med');
+  document.getElementById('m-mtab-doc')?.classList.toggle('active',tab==='doc');
+  let ml=document.getElementById('m-master-med-list');
+  let dl=document.getElementById('m-master-doc-list');
+  if(ml) ml.style.display=tab==='med'?'block':'none';
+  if(dl) dl.style.display=tab==='doc'?'block':'none';
+  let btn=document.getElementById('m-master-add-btn');
+  if(btn) btn.textContent=tab==='med'?'+ Medicine':'+ Doctor';
+}
+function masterAddClick(){ if(activeMasterTab==='med') openMedModal(); else openDocModal(); }
+
+// ── TODAY RENDER ──
+async function renderToday(){
+  let doses=await getDosesForDate(viewDateStr);
+  let taken=doses.filter(x=>x.status==='taken').length;
+  let pending=doses.filter(x=>x.status==='pending').length;
+  let skipped=doses.filter(x=>x.status==='skipped').length;
+  let total=doses.length;
+  let pct=total>0?Math.round((taken/total)*100):0;
+
+  if(isMobile()){
+    let isToday=viewDateStr===today();
+    let d=new Date(viewDateStr+'T00:00:00');
+    document.getElementById('m-today-main-lbl').textContent=isToday?'Today':fmtShort(d);
+    document.getElementById('m-today-sub-lbl').textContent=fmtFull(d);
+    document.getElementById('m-today-jump-btn').classList.toggle('show',!isToday);
+    document.getElementById('m-ts-total').textContent=total;
+    document.getElementById('m-ts-taken').textContent=taken;
+    document.getElementById('m-ts-pending').textContent=pending;
+    document.getElementById('m-ts-skipped').textContent=skipped;
+    document.getElementById('m-progress-bar').style.width=pct+'%';
+    document.getElementById('m-progress-label').textContent=taken+' of '+total+' doses taken ('+pct+'%)';
+    let cont=document.getElementById('m-today-slots'); cont.innerHTML='';
+    if(!doses.length){ cont.innerHTML=`<div class="m-empty-day"><div class="m-empty-icon">&#128138;</div><h3>No medicines scheduled</h3><p>Add a prescription to see your daily schedule.</p></div>`; return; }
+    const slotIcons={Morning:'&#9728;',Afternoon:'&#9729;',Evening:'&#127769;',Night:'&#127764;'};
+    SLOTS.forEach(slot=>{
+      let sd=doses.filter(d=>d.slot===slot); if(!sd.length)return;
+      let hdr=document.createElement('div'); hdr.className='m-slot-hdr'; hdr.innerHTML=`${slotIcons[slot]}&nbsp;${slot}`; cont.appendChild(hdr);
+      ['before','after'].forEach(timing=>{
+        let td=sd.filter(d=>d.timing===timing); if(!td.length)return;
+        let tl=document.createElement('div'); tl.className='m-timing-lbl'; tl.textContent=timing==='before'?'↑ Before meals':'↓ After meals'; cont.appendChild(tl);
+        td.forEach(dose=>cont.appendChild(buildMobileDoseCard(dose,viewDateStr)));
+      });
+    });
+  } else {
+    let isToday=viewDateStr===today();
+    let d=new Date(viewDateStr+'T00:00:00');
+    document.getElementById('d-today-main-lbl').textContent=isToday?'Today — '+fmtFull(d):fmtFull(d);
+    document.getElementById('d-today-sub-lbl').textContent=isToday?'':'(Not today)';
+    document.getElementById('d-today-jump-btn').classList.toggle('show',!isToday);
+    document.getElementById('d-ts-total').textContent=total;
+    document.getElementById('d-ts-taken').textContent=taken;
+    document.getElementById('d-ts-pending').textContent=pending;
+    document.getElementById('d-ts-skipped').textContent=skipped;
+    document.getElementById('d-progress-bar').style.width=pct+'%';
+    document.getElementById('d-progress-lbl').textContent=taken+' of '+total+' doses taken ('+pct+'%)';
+    let cols=document.getElementById('d-today-cols'); cols.innerHTML='';
+    if(!doses.length){ cols.innerHTML=`<div class="empty-state"><div class="empty-icon-wrap">&#128138;</div><h3>No medicines scheduled</h3><p>Add a prescription to see your daily schedule here.</p></div>`; return; }
+    const slotIcons={Morning:'&#9728;',Afternoon:'&#9729;',Evening:'&#127769;',Night:'&#127764;'};
+    SLOTS.forEach(slot=>{
+      let sd=doses.filter(d=>d.slot===slot); if(!sd.length)return;
+      let col=document.createElement('div'); col.className='slot-col';
+      col.innerHTML=`<div class="slot-col-hdr">${slotIcons[slot]}&nbsp;${slot}</div><div class="slot-col-body" id="d-slot-body-${slot}"></div>`;
+      cols.appendChild(col);
+      let body=col.querySelector('.slot-col-body');
+      ['before','after'].forEach(timing=>{
+        let td=sd.filter(d=>d.timing===timing); if(!td.length)return;
+        let tl=document.createElement('div'); tl.className='d-timing-lbl'; tl.textContent=timing==='before'?'↑ Before meals':'↓ After meals'; body.appendChild(tl);
+        td.forEach(dose=>body.appendChild(buildDesktopDoseCard(dose,viewDateStr)));
+      });
+    });
+  }
+}
+
+// ── DESKTOP DOSE CARD ──
+function buildDesktopDoseCard(dose,dateStr){
+  let card=document.createElement('div');
+  let missed=dose.status==='pending'&&isMissed(dose.slot,dateStr);
+  card.className='dose-card'+(missed?' missed-highlight':'');
+  let chkIcon=dose.status==='taken'?'&#10003;':dose.status==='skipped'?'&#10007;':'';
+  let tags='';
+  if(dose.isCustom) tags+=`<span class="dose-tag tag-custom">Prepared</span>`;
+  if(dose.isOneDay) tags+=`<span class="dose-tag tag-oneday">One-day</span>`;
+  if(dose.system)   tags+=`<span class="dose-tag tag-system">${esc(dose.system)}</span>`;
+  let takenHtml=dose.status==='taken'&&dose.takenAt?`<div class="dose-taken-time">&#10003; Taken at ${fmtTime12(dose.takenAt)}</div>`:'';
+  let skipHtml=dose.status==='skipped'&&dose.skipReason?`<div class="dose-skip-reason">Skipped: ${esc(dose.skipReason)}</div>`:'';
+  let missedHtml=missed?`<span class="missed-badge">&#9888; Overdue</span>`:'';
+  let qtyHtml=dose.qty?`<span>&#128138; ${esc(dose.qty)}</span>`:'';
+  card.innerHTML=`
+    <div class="dose-check ${dose.status}" onclick="tapCheck('${esc(dose.doseKey)}','${dose.rxId}','${dateStr}')">${chkIcon}</div>
+    <div class="dose-body">
+      <div class="dose-name${dose.status==='taken'?' s-taken':''}">${esc(dose.medName)}</div>
+      <div class="dose-meta">${qtyHtml}${dose.doctor?`<span>Dr. ${esc(dose.doctor)}</span>`:''} ${missedHtml}${tags}</div>
+      ${takenHtml}${skipHtml}
+      ${dose.status==='pending'?`<div class="dose-actions"><button class="dose-action-btn take" onclick="tapCheck('${esc(dose.doseKey)}','${dose.rxId}','${dateStr}')">&#10003; Take</button><button class="dose-action-btn" onclick="openSkipReason('${esc(dose.doseKey)}','${dose.rxId}','${dateStr}','${esc(dose.medName)}','${dose.slot}')">Skip</button></div>`:''}
+    </div>`;
+  attachDesktopSwipe(card,dose,dateStr);
+  return card;
+}
+
+function attachDesktopSwipe(card,dose,dateStr){
+  let startX=0,curX=0,dragging=false,threshold=80;
+  function onStart(e){ if(dose.status!=='pending')return; startX=e.touches?e.touches[0].clientX:e.clientX; curX=startX; dragging=true; }
+  function onMove(e){ if(!dragging)return; curX=e.touches?e.touches[0].clientX:e.clientX; let dx=curX-startX; if(Math.abs(dx)>8) card.style.transform=`translateX(${Math.min(Math.max(dx,-120),120)}px)`; }
+  async function onEnd(){
+    if(!dragging)return; dragging=false; let dx=curX-startX; card.style.transform='';
+    if(dx>threshold){ await markDose(dose.doseKey,dose.rxId,dateStr,dose,'taken'); showToast('&#10003; Taken at '+fmtTime12(nowTimeStr())); refreshView(dateStr); }
+    else if(dx<-threshold){ openSkipReason(dose.doseKey,dose.rxId,dateStr,dose.medName,dose.slot); }
+  }
+  card.addEventListener('touchstart',onStart,{passive:true}); card.addEventListener('touchmove',onMove,{passive:true}); card.addEventListener('touchend',onEnd);
+  card.addEventListener('mousedown',onStart); card.addEventListener('mousemove',onMove); card.addEventListener('mouseup',onEnd);
+  card.addEventListener('mouseleave',()=>{ if(dragging){dragging=false;card.style.transform='';} });
+}
+
+// ── MOBILE DOSE CARD ──
+function buildMobileDoseCard(dose,dateStr){
+  let wrap=document.createElement('div'); wrap.className='m-dose-card-wrap';
+  let missed=dose.status==='pending'&&isMissed(dose.slot,dateStr);
+  let checkIcon=dose.status==='taken'?'&#10003;':dose.status==='skipped'?'&#10007;':'';
+  let tags='';
+  if(dose.isCustom) tags+=`<span class="m-dose-tag m-tag-custom">Prepared</span>`;
+  if(dose.isOneDay) tags+=`<span class="m-dose-tag m-tag-oneday">One-day</span>`;
+  if(dose.system)   tags+=`<span class="m-dose-tag m-tag-system">${esc(dose.system)}</span>`;
+  let takenHtml=dose.status==='taken'&&dose.takenAt?`<div class="m-dose-taken-time">&#10003; Taken at ${fmtTime12(dose.takenAt)}</div>`:'';
+  let skipHtml=dose.status==='skipped'&&dose.skipReason?`<div style="font-size:10px;color:var(--coral);margin-top:2px">Skipped: ${esc(dose.skipReason)}</div>`:'';
+  let missedHtml=missed?`<span class="m-dose-missed-badge">&#9888; Overdue</span>`:'';
+  let qtyHtml=dose.qty?`<span>&#128138; ${esc(dose.qty)}</span>`:'';
+  wrap.innerHTML=`
+    <div class="m-swipe-hint-taken">&#10003;&nbsp;Taken</div>
+    <div class="m-swipe-hint-skip">Skip&nbsp;&#10007;</div>
+    <div class="m-dose-card${missed?' missed-highlight':''}">
+      <div class="m-dose-check ${dose.status}" onclick="tapCheck('${esc(dose.doseKey)}','${dose.rxId}','${dateStr}')">${checkIcon}</div>
+      <div class="m-dose-info">
+        <div class="m-dose-name${dose.status==='taken'?' taken-strike':''}">${esc(dose.medName)}</div>
+        <div class="m-dose-sub">${qtyHtml}${dose.doctor?`<span>Dr. ${esc(dose.doctor)}</span>`:''} ${missedHtml}${tags}</div>
+        ${takenHtml}${skipHtml}
+      </div>
+      ${dose.status==='pending'?`<button class="m-skip-btn" onclick="openSkipReason('${esc(dose.doseKey)}','${dose.rxId}','${dateStr}','${esc(dose.medName)}','${dose.slot}')">Skip</button>`:''}
+    </div>`;
+  attachMobileSwipe(wrap,dose,dateStr);
+  return wrap;
+}
+
+function attachMobileSwipe(wrap,dose,dateStr){
+  let card=wrap.querySelector('.m-dose-card'); if(!card)return;
+  let startX=0,curX=0,dragging=false,threshold=80;
+  function onStart(e){ if(dose.status!=='pending')return; startX=e.touches?e.touches[0].clientX:e.clientX; curX=startX; dragging=true; }
+  function onMove(e){ if(!dragging)return; curX=e.touches?e.touches[0].clientX:e.clientX; let dx=curX-startX; if(Math.abs(dx)>8){ card.style.transform=`translateX(${dx}px)`; card.style.boxShadow=dx>0?'4px 0 16px rgba(26,107,74,.2)':'-4px 0 16px rgba(192,57,43,.2)'; } }
+  async function onEnd(){
+    if(!dragging)return; dragging=false; let dx=curX-startX; card.style.transform=''; card.style.boxShadow='';
+    if(dx>threshold){ await markDose(dose.doseKey,dose.rxId,dateStr,dose,'taken'); showToast('&#10003; Taken at '+fmtTime12(nowTimeStr())); refreshView(dateStr); }
+    else if(dx<-threshold){ openSkipReason(dose.doseKey,dose.rxId,dateStr,dose.medName,dose.slot); }
+  }
+  card.addEventListener('touchstart',onStart,{passive:true}); card.addEventListener('touchmove',onMove,{passive:true}); card.addEventListener('touchend',onEnd);
+  card.addEventListener('mousedown',onStart); card.addEventListener('mousemove',onMove); card.addEventListener('mouseup',onEnd);
+  card.addEventListener('mouseleave',()=>{ if(dragging){dragging=false;card.style.transform='';card.style.boxShadow='';} });
+}
+
+// ── TAP CHECK ──
+async function tapCheck(key,rxId,dateStr){
+  let doses=await getDosesForDate(dateStr);
+  let d=doses.find(x=>x.doseKey===key); if(!d)return;
+  let newSt=d.status==='taken'?'pending':'taken';
+  await markDose(key,parseInt(rxId),dateStr,d,newSt);
+  if(newSt==='taken') showToast('&#10003; Taken at '+fmtTime12(nowTimeStr())); else showToast('Marked pending');
+  refreshView(dateStr);
+}
+function refreshView(dateStr){ if(activeView==='today') renderToday(); else renderCalDayDetail(dateStr); }
+
+// ── SKIP REASON ──
+let skipPending={}, selectedReason='';
+function openSkipReason(doseKey,rxId,dateStr,medName,slot){
+  skipPending={doseKey,rxId:parseInt(rxId),dateStr,medName,slot}; selectedReason='';
+  let lbl=medName+' — '+slot;
+  if(isMobile()){
+    document.getElementById('m-skip-med-name').textContent=lbl;
+    document.getElementById('reason-other-input-m').value='';
+    document.getElementById('reason-other-input-m').classList.remove('show');
+    document.getElementById('m-skip-overlay').classList.add('open');
+  } else {
+    document.getElementById('d-skip-med-name').textContent=lbl;
+    document.getElementById('reason-other-input').value='';
+    document.getElementById('reason-other-input').classList.remove('show');
+    document.getElementById('d-skip-overlay').classList.add('open');
+  }
+  document.querySelectorAll('.reason-opt').forEach(el=>el.classList.remove('sel'));
+}
+function selReason(el,reason){
+  selectedReason=reason;
+  document.querySelectorAll('.reason-opt').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel');
+  let oi=isMobile()?document.getElementById('reason-other-input-m'):document.getElementById('reason-other-input');
+  if(oi) oi.classList.toggle('show',reason==='Other');
+}
+async function confirmSkip(){
+  if(!selectedReason){ showToast('Please select a reason'); return; }
+  let oi=isMobile()?document.getElementById('reason-other-input-m'):document.getElementById('reason-other-input');
+  let reason=selectedReason==='Other'?(oi?.value.trim()||'Other'):selectedReason;
+  let doses=await getDosesForDate(skipPending.dateStr);
+  let d=doses.find(x=>x.doseKey===skipPending.doseKey); if(!d)return;
+  await markDose(skipPending.doseKey,skipPending.rxId,skipPending.dateStr,d,'skipped',reason);
+  document.getElementById('m-skip-overlay')?.classList.remove('open');
+  document.getElementById('d-skip-overlay')?.classList.remove('open');
+  showToast('Skipped: '+reason);
+  refreshView(skipPending.dateStr);
+}
+
+// ── CALENDAR ──
+function changeCalMonth(dir){ calDate.setMonth(calDate.getMonth()+dir); renderCalendar(); }
+async function renderCalendar(){
+  let year=calDate.getFullYear(), month=calDate.getMonth();
+  let lbl=calDate.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  let el_d=document.getElementById('d-cal-month-label'); if(el_d) el_d.textContent=lbl;
+  let el_m=document.getElementById('m-cal-month-label'); if(el_m) el_m.textContent=lbl;
+  let firstDay=new Date(year,month,1).getDay(), daysInMonth=new Date(year,month+1,0).getDate(), todayStr=today();
+  let prescriptions=await dbGet('prescriptions'), allLogs=await dbGet('logs');
+  let logMap={}; allLogs.forEach(l=>logMap[l.doseKey]=l.status);
+  let dayCounts={};
+  prescriptions.forEach(rx=>{
+    generateSchedule(rx).forEach(s=>{
+      if(!dayCounts[s.date])dayCounts[s.date]={taken:0,pending:0,skipped:0};
+      let k=doseKey(rx.id,s.medName,s.slot,s.timing,s.date);
+      dayCounts[s.date][logMap[k]||'pending']++;
+    });
+  });
+
+  function buildCalGrid(gridId, dayClass, dowClass){
+    let grid=document.getElementById(gridId); if(!grid)return;
+    grid.innerHTML='';
+    ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d=>{ let el=document.createElement('div'); el.className=dowClass; el.textContent=d; grid.appendChild(el); });
+    for(let i=0;i<firstDay;i++){ let el=document.createElement('div'); el.className=dayClass+' other-month'; grid.appendChild(el); }
+    for(let day=1;day<=daysInMonth;day++){
+      let ds=year+'-'+String(month+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+      let el=document.createElement('div'); el.className=dayClass;
+      if(ds===todayStr)el.classList.add('today-cal');
+      if(ds===calSelectedDate)el.classList.add('selected-cal');
+      let c=dayCounts[ds], dots='';
+      if(c){ if(c.taken>0)dots+=`<span class="dot-taken"></span>`; if(c.pending>0)dots+=`<span class="dot-pending"></span>`; if(c.skipped>0)dots+=`<span class="dot-skipped"></span>`; }
+      el.innerHTML=`${day}<div class="dot-row">${dots}</div>`;
+      el.onclick=()=>{ calSelectedDate=ds; renderCalendar(); };
+      grid.appendChild(el);
+    }
+  }
+  buildCalGrid('d-cal-grid','cal-day','cal-dow');
+  buildCalGrid('m-cal-grid','m-cal-day','m-cal-dow');
+  renderCalDayDetail(calSelectedDate);
+}
+
+async function renderCalDayDetail(dateStr){
+  let doses=await getDosesForDate(dateStr);
+  let d=new Date(dateStr+'T00:00:00');
+  let hdrTxt=fmtShort(d)+' — '+doses.length+' dose'+(doses.length!==1?'s':'');
+  let noMsg=`<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">No medicines scheduled</div>`;
+
+  // Desktop
+  let dHdr=document.getElementById('d-cal-detail-hdr'); if(dHdr) dHdr.textContent=hdrTxt;
+  let dBody=document.getElementById('d-cal-detail-body');
+  if(dBody){
+    dBody.innerHTML='';
+    if(!doses.length){ dBody.innerHTML=noMsg; }
+    else {
+      SLOTS.forEach(slot=>{
+        let sd=doses.filter(x=>x.slot===slot); if(!sd.length)return;
+        let hdr=document.createElement('div'); hdr.style.cssText='font-size:10px;font-weight:700;color:var(--subtle);letter-spacing:.8px;text-transform:uppercase;padding:10px 0 5px'; hdr.textContent=slot; dBody.appendChild(hdr);
+        ['before','after'].forEach(timing=>{
+          let td=sd.filter(x=>x.timing===timing); if(!td.length)return;
+          let tl=document.createElement('div'); tl.className='d-timing-lbl'; tl.textContent=timing==='before'?'↑ Before meals':'↓ After meals'; dBody.appendChild(tl);
+          td.forEach(dose=>dBody.appendChild(buildDesktopDoseCard(dose,dateStr)));
+        });
+      });
+    }
+  }
+
+  // Mobile
+  let mCont=document.getElementById('m-cal-detail');
+  if(mCont){
+    mCont.innerHTML='';
+    let title=document.createElement('div'); title.className='m-cal-detail-title'; title.textContent=hdrTxt; mCont.appendChild(title);
+    if(!doses.length){ mCont.innerHTML+=noMsg; }
+    else {
+      SLOTS.forEach(slot=>{
+        let sd=doses.filter(x=>x.slot===slot); if(!sd.length)return;
+        let hdr=document.createElement('div'); hdr.className='m-slot-hdr'; hdr.style.padding='10px 0 5px'; hdr.textContent=slot; mCont.appendChild(hdr);
+        ['before','after'].forEach(timing=>{
+          let td=sd.filter(x=>x.timing===timing); if(!td.length)return;
+          let tl=document.createElement('div'); tl.className='m-timing-lbl'; tl.textContent=timing==='before'?'↑ Before meals':'↓ After meals'; mCont.appendChild(tl);
+          td.forEach(dose=>mCont.appendChild(buildMobileDoseCard(dose,dateStr)));
+        });
+      });
+    }
+  }
+}
+
+// ── PRESCRIPTIONS ──
+let editRxId=null, rxMedRows=[], rxDateType={}, quickMedTargetRow=null;
+
+function rxDocSelId(){ return isMobile()?'m-rx-doctor-sel':'rx-doctor-sel'; }
+function rxStartId(){ return isMobile()?'m-rx-start':'rx-start'; }
+function rxNotesId(){ return isMobile()?'m-rx-notes':'rx-notes'; }
+function rxMedEntriesId(){ return isMobile()?'m-rx-med-entries':'rx-med-entries'; }
+
+async function openRxModal(rxId){
+  editRxId=rxId||null; rxMedRows=[]; rxDateType={};
+  let titleTxt=rxId?'Edit Prescription':'New Prescription';
+  let doctors=await dbGet('doctors');
+  function populateSel(selId){
+    let sel=document.getElementById(selId); if(!sel)return;
+    sel.innerHTML='<option value="">— Select doctor —</option>';
+    doctors.sort((a,b)=>a.name.localeCompare(b.name)).forEach(d=>{ let o=document.createElement('option'); o.value=d.id; o.textContent=d.name+(d.specialization?' ('+d.specialization+')':''); sel.appendChild(o); });
+  }
+  populateSel('rx-doctor-sel'); populateSel('m-rx-doctor-sel');
+
+  if(isMobile()){
+    document.getElementById('m-rx-modal-title').textContent=titleTxt;
+    document.getElementById('m-rx-start').value=today();
+    document.getElementById('m-rx-notes').value='';
+    document.getElementById('m-rx-med-entries').innerHTML='';
+    if(rxId){ let list=await dbGet('prescriptions'),rx=list.find(x=>x.id===rxId); if(rx){ document.getElementById('m-rx-doctor-sel').value=rx.doctorId||''; document.getElementById('m-rx-start').value=rx.startDate||''; document.getElementById('m-rx-notes').value=rx.notes||''; for(let m of rx.meds)await addRxMedRow(m); } } else await addRxMedRow();
+    document.getElementById('m-rx-modal').classList.add('open');
+  } else {
+    document.getElementById('d-rx-modal-title').textContent=titleTxt;
+    document.getElementById('rx-start').value=today();
+    document.getElementById('rx-notes').value='';
+    document.getElementById('rx-med-entries').innerHTML='';
+    if(rxId){ let list=await dbGet('prescriptions'),rx=list.find(x=>x.id===rxId); if(rx){ document.getElementById('rx-doctor-sel').value=rx.doctorId||''; document.getElementById('rx-start').value=rx.startDate||''; document.getElementById('rx-notes').value=rx.notes||''; for(let m of rx.meds)await addRxMedRow(m); } } else await addRxMedRow();
+    document.getElementById('d-rx-modal').classList.add('open');
+  }
+}
+
+async function addRxMedRow(prefill){
+  let medicines=await dbGet('medicines');
+  let rowIdx=Date.now()+'_'+Math.random().toString(36).slice(2,5);
+  rxMedRows.push(rowIdx);
+  rxDateType[rowIdx]=prefill?prefill.dateType:'duration';
+  let isCustom=prefill?!!prefill.isCustom:false;
+  let medOpts=medicines.map(m=>`<option value="${m.id}" ${prefill&&prefill.medId===m.id?'selected':''}>${esc(m.name)}${m.genericName?' / '+esc(m.genericName):''}</option>`).join('');
+  let freq=prefill?prefill.freq||{}:{};
+  let freqBefore=SLOTS.map(s=>{ let sf=freq[s]||{}; return `<td><input class="freq-input" id="fi-${rowIdx}-${s}-before" type="text" inputmode="decimal" placeholder="—" value="${esc(sf.before||'')}"></td>`; }).join('');
+  let freqAfter =SLOTS.map(s=>{ let sf=freq[s]||{}; return `<td><input class="freq-input" id="fi-${rowIdx}-${s}-after"  type="text" inputmode="decimal" placeholder="—" value="${esc(sf.after||'')}"></td>`; }).join('');
+  let thCols=isMobile()?SLOTS.map(s=>`<th>${s.slice(0,3)}</th>`).join(''):SLOTS.map(s=>`<th>${s}</th>`).join('');
+
+  let div=document.createElement('div'); div.className='med-entry-row'; div.id='mrow-'+rowIdx;
+  div.innerHTML=`
+    <button class="med-entry-remove" onclick="removeRxMedRow('${rowIdx}')">&#10005;</button>
+    <div class="med-type-toggle">
+      <div class="med-type-btn ${!isCustom?'active-master':''}" onclick="setMedType('${rowIdx}',false)">&#128194; From Master</div>
+      <div class="med-type-btn ${isCustom?'active-custom':''}" onclick="setMedType('${rowIdx}',true)">&#9881; Custom/Prepared</div>
+    </div>
+    <div id="master-sel-${rowIdx}" style="${isCustom?'display:none':''}">
+      <div class="form-grp" style="margin-bottom:6px"><label>Medicine</label>
+        <select id="rx-med-${rowIdx}"><option value="">— Select —</option>${medOpts}</select>
+      </div>
+      <button class="add-row-btn" style="font-size:11px;padding:6px;margin-bottom:8px" onclick="openQuickMedModal('${rowIdx}')">&#43; Not in list? Add to Master</button>
+    </div>
+    <div id="custom-sel-${rowIdx}" style="${isCustom?'':'display:none'}">
+      <div class="form-row" style="margin-bottom:6px">
+        <div class="form-grp"><label>Medicine Name *</label><input type="text" id="rx-cname-${rowIdx}" placeholder="e.g. Hakim's compound" value="${prefill&&prefill.isCustom?esc(prefill.medName):''}"></div>
+        <div class="form-grp"><label>System</label><select id="rx-csys-${rowIdx}"><option value="">—</option>${MED_SYSTEMS.map(s=>`<option ${prefill&&prefill.system===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      </div>
+    </div>
+    <div style="margin-bottom:7px">
+      <label style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.7px;text-transform:uppercase;display:block;margin-bottom:5px">Schedule Type</label>
+      <div class="date-type-toggle">
+        <div class="date-type-btn ${rxDateType[rowIdx]!=='specific'?'active':''}" onclick="setDateType('${rowIdx}','duration')">Duration (Days)</div>
+        <div class="date-type-btn ${rxDateType[rowIdx]==='specific'?'active':''}" onclick="setDateType('${rowIdx}','specific')">Specific Date</div>
+      </div>
+    </div>
+    <div id="dur-section-${rowIdx}" style="${rxDateType[rowIdx]==='specific'?'display:none':''}">
+      <div class="form-grp" style="margin-bottom:8px"><label>Duration (days) *</label>
+        <input type="number" id="rx-dur-${rowIdx}" min="1" max="365" inputmode="numeric" placeholder="e.g. 10" value="${prefill&&prefill.duration?prefill.duration:''}">
+      </div>
+      <label style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.7px;text-transform:uppercase;display:block;margin-bottom:5px">Frequency &amp; Dosage</label>
+      <div class="freq-grid-wrap">
+        <table class="freq-grid-table">
+          <thead><tr><th></th>${thCols}</tr></thead>
+          <tbody>
+            <tr><td>Before</td>${freqBefore}</tr>
+            <tr><td>After</td>${freqAfter}</tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="freq-note">Enter qty (e.g. 1, 2, 1/2) per cell. Leave blank if not needed.</div>
+    </div>
+    <div id="specific-section-${rowIdx}" style="${rxDateType[rowIdx]==='specific'?'':'display:none'}">
+      <div class="form-row">
+        <div class="form-grp"><label>Date *</label><input type="date" id="rx-specdate-${rowIdx}" value="${prefill&&prefill.specificDate?prefill.specificDate:''}"></div>
+        <div class="form-grp"><label>Slot</label><select id="rx-specslot-${rowIdx}">${SLOTS.map(s=>`<option ${prefill&&prefill.specificSlot===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-grp"><label>Timing</label><select id="rx-spectiming-${rowIdx}"><option value="before" ${prefill&&prefill.specificTiming==='before'?'selected':''}>Before meals</option><option value="after" ${prefill&&prefill.specificTiming==='after'?'selected':''}>After meals</option></select></div>
+        <div class="form-grp"><label>Quantity</label><input type="text" id="rx-specqty-${rowIdx}" inputmode="decimal" placeholder="e.g. 1" value="${prefill&&prefill.specificQty?prefill.specificQty:''}"></div>
+      </div>
+    </div>`;
+
+  let cont=document.getElementById(rxMedEntriesId()); if(cont) cont.appendChild(div);
+}
+
+function setMedType(ri,isCustom){
+  document.getElementById('master-sel-'+ri).style.display=isCustom?'none':'';
+  document.getElementById('custom-sel-'+ri).style.display=isCustom?'':'none';
+  document.getElementById('mrow-'+ri).querySelectorAll('.med-type-btn').forEach((b,i)=>{ b.className='med-type-btn '+(i===0&&!isCustom?'active-master':i===1&&isCustom?'active-custom':''); });
+}
+function setDateType(ri,type){
+  rxDateType[ri]=type;
+  document.getElementById('dur-section-'+ri).style.display=type==='specific'?'none':'';
+  document.getElementById('specific-section-'+ri).style.display=type==='specific'?'':'none';
+  document.getElementById('mrow-'+ri).querySelectorAll('.date-type-btn').forEach((b,i)=>{ b.classList.toggle('active',(i===0&&type!=='specific')||(i===1&&type==='specific')); });
+}
+function removeRxMedRow(ri){ document.getElementById('mrow-'+ri)?.remove(); rxMedRows=rxMedRows.filter(r=>r!==ri); }
+
+async function saveRx(){
+  let mobile=isMobile();
+  let docId=document.getElementById(mobile?'m-rx-doctor-sel':'rx-doctor-sel').value;
+  let startDate=document.getElementById(mobile?'m-rx-start':'rx-start').value;
+  if(!docId){ showToast('Select a doctor'); return; }
+  if(!startDate){ showToast('Select start date'); return; }
+  let doctors=await dbGet('doctors'), doc=doctors.find(d=>d.id===parseInt(docId));
+  let medicines=await dbGet('medicines'), meds=[], valid=true;
+  let rows=document.getElementById(rxMedEntriesId()).querySelectorAll('.med-entry-row');
+  for(let row of rows){
+    let ri=row.id.replace('mrow-','');
+    let isCustom=document.getElementById('custom-sel-'+ri).style.display!=='none';
+    let dateType=rxDateType[ri]||'duration';
+    let medObj={isCustom,dateType};
+    if(isCustom){
+      let cn=document.getElementById('rx-cname-'+ri)?.value.trim(); if(!cn){valid=false;break;}
+      medObj.medId=null; medObj.medName=cn; medObj.system=document.getElementById('rx-csys-'+ri)?.value||'';
+    } else {
+      let medId=parseInt(document.getElementById('rx-med-'+ri)?.value); if(!medId){valid=false;break;}
+      let m=medicines.find(x=>x.id===medId); medObj.medId=medId; medObj.medName=m?m.name:'Unknown'; medObj.system=m?m.system||'':'';
+    }
+    if(dateType==='specific'){
+      let sd=document.getElementById('rx-specdate-'+ri)?.value; if(!sd){valid=false;break;}
+      medObj.specificDate=sd; medObj.specificSlot=document.getElementById('rx-specslot-'+ri)?.value||'Morning';
+      medObj.specificTiming=document.getElementById('rx-spectiming-'+ri)?.value||'before';
+      medObj.specificQty=document.getElementById('rx-specqty-'+ri)?.value.trim()||'1'; medObj.duration=1;
+    } else {
+      let dur=parseInt(document.getElementById('rx-dur-'+ri)?.value); if(!dur||dur<1){valid=false;break;}
+      medObj.duration=dur;
+      let freq={};
+      SLOTS.forEach(s=>{ let bf=document.getElementById(`fi-${ri}-${s}-before`)?.value.trim()||''; let af=document.getElementById(`fi-${ri}-${s}-after`)?.value.trim()||''; if(bf||af)freq[s]={before:bf,after:af}; });
+      if(!Object.keys(freq).length){valid=false;break;}
+      medObj.freq=freq;
+    }
+    meds.push(medObj);
+  }
+  if(!valid||!meds.length){ showToast('Fill all required medicine fields'); return; }
+  let rx={doctorId:parseInt(docId),doctorName:doc?doc.name:'',notes:document.getElementById(mobile?'m-rx-notes':'rx-notes').value.trim(),startDate,meds,createdAt:Date.now()};
+  if(editRxId){ rx.id=editRxId; await dbPut('prescriptions',rx); } else await dbAdd('prescriptions',rx);
+  if(mobile) closeMModal('m-rx-modal'); else closeDModal('d-rx-modal');
+  showToast(editRxId?'Prescription updated':'Prescription saved'); renderRx(); gdriveSaveIfConnected();
+}
+
+async function renderRx(){
+  let prescriptions=await dbGet('prescriptions'), todayStr=today();
+  prescriptions.sort((a,b)=>b.createdAt-a.createdAt);
+
+  function buildCard(rx,isMob){
+    let maxDur=Math.max(...rx.meds.map(m=>m.dateType==='specific'?1:(m.duration||1)));
+    let endDate=addDays(rx.startDate,maxDur-1);
+    let status=endDate<todayStr?'completed':rx.startDate>todayStr?'upcoming':'active';
+    let medRows=rx.meds.map(m=>{
+      let detail='';
+      if(m.dateType==='specific') detail=`On ${fmtShort(new Date(m.specificDate+'T00:00:00'))} &middot; ${m.specificSlot} &middot; ${cap(m.specificTiming||'')} &middot; Qty:${esc(m.specificQty||'1')}`;
+      else { let slots=Object.entries(m.freq||{}).map(([sl,v])=>{ let p=[]; if(v.before)p.push(`B:${v.before}`); if(v.after)p.push(`A:${v.after}`); return sl.slice(0,3)+' '+p.join('/'); }).join(', '); detail=`${m.duration}d — ${slots}`; }
+      if(isMob) return `<div class="m-rx-med-row"><div class="m-rx-med-dot ${m.isCustom?'custom':''}"></div><div class="m-rx-med-name">${esc(m.medName)}${m.isCustom?' <span style="font-size:10px;color:var(--amber)">(Prepared)</span>':''}</div><div class="m-rx-med-detail">${detail}</div></div>`;
+      return `<div class="rx-med-row"><div class="rx-med-dot ${m.isCustom?'custom':''}"></div><div class="rx-med-name">${esc(m.medName)}${m.isCustom?' <span style="font-size:10px;color:var(--amber)">(Prepared)</span>':''}</div><div class="rx-med-detail">${detail}</div></div>`;
+    }).join('');
+    if(isMob) return `<div class="m-rx-card"><div class="m-rx-card-hdr"><div class="m-rx-avatar">&#128100;</div><div class="m-rx-info"><div class="m-rx-doctor">Dr. ${esc(rx.doctorName)}</div><div class="m-rx-sub"><span>From ${fmtShort(new Date(rx.startDate+'T00:00:00'))}</span><span>To ${fmtShort(new Date(endDate+'T00:00:00'))}</span>${rx.notes?`<span>${esc(rx.notes)}</span>`:''}</div></div><span class="m-rx-status ${status}">${cap(status)}</span></div><div class="m-rx-meds">${medRows}</div><div class="m-rx-actions"><button class="m-rx-act-btn" onclick="openRxModal(${rx.id})">&#9998; Edit</button><button class="m-rx-act-btn del" onclick="askDel('prescriptions',${rx.id},'Delete Prescription?','Logs are kept.')">&#128465; Delete</button></div></div>`;
+    return `<div class="rx-card"><div class="rx-card-hdr"><div class="rx-avatar">&#128100;</div><div class="rx-info"><div class="rx-doctor">Dr. ${esc(rx.doctorName)}</div><div class="rx-sub"><span>From ${fmtShort(new Date(rx.startDate+'T00:00:00'))}</span><span>To ${fmtShort(new Date(endDate+'T00:00:00'))}</span>${rx.notes?`<span>${esc(rx.notes)}</span>`:''}</div></div><span class="rx-status ${status}">${cap(status)}</span></div><div class="rx-meds-section">${medRows}</div><div class="rx-actions-row"><button class="rx-act-btn" onclick="openRxModal(${rx.id})">&#9998; Edit</button><button class="rx-act-btn del" onclick="askDel('prescriptions',${rx.id},'Delete Prescription?','Logs are kept.')">&#128465; Delete</button></div></div>`;
+  }
+
+  let dCont=document.getElementById('d-rx-list');
+  let mCont=document.getElementById('m-rx-list');
+  let emptyD=`<div class="empty-state"><div class="empty-icon-wrap">&#128138;</div><h3>No prescriptions yet</h3><p>Tap <strong>+ Add Prescription</strong> to get started.</p></div>`;
+  let emptyM=`<div class="m-empty-day"><div class="m-empty-icon">&#128138;</div><h3>No prescriptions yet</h3><p>Tap <strong>+ Add Rx</strong> to add your first.</p></div>`;
+  if(dCont){ dCont.innerHTML=prescriptions.length?'':emptyD; prescriptions.forEach(rx=>{ if(!prescriptions.length)return; dCont.innerHTML=''; prescriptions.forEach(r=>dCont.insertAdjacentHTML('beforeend',buildCard(r,false))); }); if(prescriptions.length){ dCont.innerHTML=''; prescriptions.forEach(rx=>dCont.insertAdjacentHTML('beforeend',buildCard(rx,false))); } }
+  if(mCont){ mCont.innerHTML=prescriptions.length?'':emptyM; if(prescriptions.length){ mCont.innerHTML=''; prescriptions.forEach(rx=>mCont.insertAdjacentHTML('beforeend',buildCard(rx,true))); } }
+}
+
+// ── QUICK ADD ──
+function openQuickMedModal(ri){
+  quickMedTargetRow=ri;
+  if(isMobile()){
+    ['qm-name-m','qm-generic-m','qm-unit-m'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('qm-system-m').value=''; document.getElementById('qm-type-m').value='';
+    document.getElementById('m-quick-med-modal').classList.add('open');
+  } else {
+    ['qm-name','qm-generic','qm-unit'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('qm-system').value=''; document.getElementById('qm-type').value='';
+    document.getElementById('d-quick-med-modal').classList.add('open');
+  }
+}
+async function saveQuickMed(){
+  let mobile=isMobile();
+  let name=document.getElementById(mobile?'qm-name-m':'qm-name').value.trim(); if(!name){showToast('Enter medicine name');return;}
+  let med={name,genericName:document.getElementById(mobile?'qm-generic-m':'qm-generic').value.trim(),system:document.getElementById(mobile?'qm-system-m':'qm-system').value,type:document.getElementById(mobile?'qm-type-m':'qm-type').value,unit:document.getElementById(mobile?'qm-unit-m':'qm-unit').value.trim(),notes:'',createdAt:Date.now()};
+  let newId=await dbAdd('medicines',med);
+  if(mobile) closeMModal('m-quick-med-modal'); else closeDModal('d-quick-med-modal');
+  showToast('Added to master');
+  if(quickMedTargetRow){ let sel=document.getElementById('rx-med-'+quickMedTargetRow); if(sel){ let o=document.createElement('option'); o.value=newId; o.textContent=name+(med.genericName?' / '+med.genericName:''); o.selected=true; sel.appendChild(o); } }
+}
+
+// ── MEDICINE MASTER ──
+let editMedId=null;
+function openMedModal(id){
+  editMedId=id||null;
+  if(isMobile()){
+    document.getElementById('m-med-modal-title').textContent=id?'Edit Medicine':'Add Medicine';
+    ['mm-name-m','mm-generic-m','mm-unit-m','mm-notes-m'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('mm-system-m').value=''; document.getElementById('mm-type-m').value='';
+    if(id) dbGet('medicines').then(l=>{ let m=l.find(x=>x.id===id); if(!m)return; document.getElementById('mm-name-m').value=m.name||''; document.getElementById('mm-generic-m').value=m.genericName||''; document.getElementById('mm-system-m').value=m.system||''; document.getElementById('mm-type-m').value=m.type||''; document.getElementById('mm-unit-m').value=m.unit||''; document.getElementById('mm-notes-m').value=m.notes||''; });
+    document.getElementById('m-med-modal').classList.add('open');
+  } else {
+    document.getElementById('d-med-modal-title').textContent=id?'Edit Medicine':'Add Medicine';
+    ['mm-name','mm-generic','mm-unit','mm-notes'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('mm-system').value=''; document.getElementById('mm-type').value='';
+    if(id) dbGet('medicines').then(l=>{ let m=l.find(x=>x.id===id); if(!m)return; document.getElementById('mm-name').value=m.name||''; document.getElementById('mm-generic').value=m.genericName||''; document.getElementById('mm-system').value=m.system||''; document.getElementById('mm-type').value=m.type||''; document.getElementById('mm-unit').value=m.unit||''; document.getElementById('mm-notes').value=m.notes||''; });
+    document.getElementById('d-med-modal').classList.add('open');
+    setTimeout(()=>document.getElementById('mm-name').focus(),200);
+  }
+}
+async function saveMedMaster(){
+  let mobile=isMobile();
+  let name=document.getElementById(mobile?'mm-name-m':'mm-name').value.trim(); if(!name){showToast('Enter medicine name');return;}
+  let med={name,genericName:document.getElementById(mobile?'mm-generic-m':'mm-generic').value.trim(),system:document.getElementById(mobile?'mm-system-m':'mm-system').value,type:document.getElementById(mobile?'mm-type-m':'mm-type').value,unit:document.getElementById(mobile?'mm-unit-m':'mm-unit').value.trim(),notes:document.getElementById(mobile?'mm-notes-m':'mm-notes').value.trim(),createdAt:Date.now()};
+  if(editMedId){med.id=editMedId;await dbPut('medicines',med);}else await dbAdd('medicines',med);
+  if(mobile) closeMModal('m-med-modal'); else closeDModal('d-med-modal');
+  showToast(editMedId?'Medicine updated':'Medicine added'); renderMedMaster(); gdriveSaveIfConnected();
+}
+async function renderMedMaster(){
+  let medicines=await dbGet('medicines');
+  medicines.sort((a,b)=>a.name.localeCompare(b.name));
+  function buildCard(m,isMob){
+    let meta=`${m.genericName?`<span style="font-size:11px;color:var(--slate-m);font-style:italic">${esc(m.genericName)}</span>`:''} ${m.system?`<span class="badge badge-sys">${esc(m.system)}</span>`:''} ${m.type?`<span class="badge badge-type">${esc(m.type)}</span>`:''} ${m.unit?`<span style="font-size:11px;color:var(--muted)">${esc(m.unit)}</span>`:''}`;
+    let acts=`<button class="icon-act" onclick="openMedModal(${m.id})">&#9998;</button><button class="icon-act del" onclick="askDel('medicines',${m.id},'Delete Medicine?','Existing prescriptions are not affected.')">&#128465;</button>`;
+    if(isMob) return `<div class="m-master-card"><div class="master-icon med">&#128138;</div><div class="master-info"><div class="master-name">${esc(m.name)}</div><div class="master-meta">${meta}</div></div>${acts}</div>`;
+    return `<div class="master-card"><div class="master-icon med">&#128138;</div><div class="master-info"><div class="master-name">${esc(m.name)}</div><div class="master-meta">${meta}</div></div>${acts}</div>`;
+  }
+  let dCont=document.getElementById('d-master-med-list');
+  let mCont=document.getElementById('m-master-med-list');
+  let emptyD=`<div class="empty-state"><div class="empty-icon-wrap">&#128137;</div><h3>No medicines yet</h3><p>Add medicines here, then select them in prescriptions.</p></div>`;
+  let emptyM=`<div class="m-empty-day"><div class="m-empty-icon">&#128137;</div><h3>No medicines yet</h3><p>Add medicines here first.</p></div>`;
+  if(dCont){ dCont.innerHTML=medicines.length?'':emptyD; if(medicines.length){ dCont.innerHTML=''; medicines.forEach(m=>dCont.insertAdjacentHTML('beforeend',buildCard(m,false))); } }
+  if(mCont){ mCont.innerHTML=medicines.length?'':emptyM; if(medicines.length){ mCont.innerHTML=''; medicines.forEach(m=>mCont.insertAdjacentHTML('beforeend',buildCard(m,true))); } }
+}
+
+// ── DOCTOR MASTER ──
+let editDocId=null;
+function openDocModal(id){
+  editDocId=id||null;
+  if(isMobile()){
+    document.getElementById('m-doc-modal-title').textContent=id?'Edit Doctor':'Add Doctor';
+    ['dm-name-m','dm-spec-m','dm-hospital-m','dm-city-m','dm-phone-m'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('dm-system-m').value='';
+    if(id) dbGet('doctors').then(l=>{ let d=l.find(x=>x.id===id); if(!d)return; document.getElementById('dm-name-m').value=d.name||''; document.getElementById('dm-spec-m').value=d.specialization||''; document.getElementById('dm-system-m').value=d.system||''; document.getElementById('dm-hospital-m').value=d.hospital||''; document.getElementById('dm-city-m').value=d.city||''; document.getElementById('dm-phone-m').value=d.phone||''; });
+    document.getElementById('m-doc-modal').classList.add('open');
+  } else {
+    document.getElementById('d-doc-modal-title').textContent=id?'Edit Doctor':'Add Doctor';
+    ['dm-name','dm-spec','dm-hospital','dm-city','dm-phone'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('dm-system').value='';
+    if(id) dbGet('doctors').then(l=>{ let d=l.find(x=>x.id===id); if(!d)return; document.getElementById('dm-name').value=d.name||''; document.getElementById('dm-spec').value=d.specialization||''; document.getElementById('dm-system').value=d.system||''; document.getElementById('dm-hospital').value=d.hospital||''; document.getElementById('dm-city').value=d.city||''; document.getElementById('dm-phone').value=d.phone||''; });
+    document.getElementById('d-doc-modal').classList.add('open');
+    setTimeout(()=>document.getElementById('dm-name').focus(),200);
+  }
+}
+async function saveDocMaster(){
+  let mobile=isMobile();
+  let name=document.getElementById(mobile?'dm-name-m':'dm-name').value.trim(); if(!name){showToast('Enter doctor name');return;}
+  let doc={name,specialization:document.getElementById(mobile?'dm-spec-m':'dm-spec').value.trim(),system:document.getElementById(mobile?'dm-system-m':'dm-system').value,hospital:document.getElementById(mobile?'dm-hospital-m':'dm-hospital').value.trim(),city:document.getElementById(mobile?'dm-city-m':'dm-city').value.trim(),phone:document.getElementById(mobile?'dm-phone-m':'dm-phone').value.trim(),createdAt:Date.now()};
+  if(editDocId){doc.id=editDocId;await dbPut('doctors',doc);}else await dbAdd('doctors',doc);
+  if(mobile) closeMModal('m-doc-modal'); else closeDModal('d-doc-modal');
+  showToast(editDocId?'Doctor updated':'Doctor added'); renderDocMaster(); gdriveSaveIfConnected();
+}
+async function renderDocMaster(){
+  let doctors=await dbGet('doctors');
+  doctors.sort((a,b)=>a.name.localeCompare(b.name));
+  function buildCard(d,isMob){
+    let meta=`${d.specialization?`<span class="badge badge-spec">${esc(d.specialization)}</span>`:''} ${d.system?`<span class="badge badge-sys">${esc(d.system)}</span>`:''} ${d.hospital?`<span style="font-size:11px;color:var(--muted)">&#127968; ${esc(d.hospital)}</span>`:''} ${d.city?`<span style="font-size:11px;color:var(--muted)">&#128205; ${esc(d.city)}</span>`:''} ${d.phone?`<span style="font-size:11px;color:var(--muted)">&#128222; ${esc(d.phone)}</span>`:''}`;
+    let acts=`<button class="icon-act" onclick="openDocModal(${d.id})">&#9998;</button><button class="icon-act del" onclick="askDel('doctors',${d.id},'Delete Doctor?','Removes from master only.')">&#128465;</button>`;
+    if(isMob) return `<div class="m-master-card"><div class="master-icon doc">&#128100;</div><div class="master-info"><div class="master-name">Dr. ${esc(d.name)}</div><div class="master-meta">${meta}</div></div>${acts}</div>`;
+    return `<div class="master-card"><div class="master-icon doc">&#128100;</div><div class="master-info"><div class="master-name">Dr. ${esc(d.name)}</div><div class="master-meta">${meta}</div></div>${acts}</div>`;
+  }
+  let dCont=document.getElementById('d-master-doc-list');
+  let mCont=document.getElementById('m-master-doc-list');
+  let emptyD=`<div class="empty-state"><div class="empty-icon-wrap">&#128100;</div><h3>No doctors yet</h3><p>Add your doctors here first, then use them in prescriptions.</p></div>`;
+  let emptyM=`<div class="m-empty-day"><div class="m-empty-icon">&#128100;</div><h3>No doctors yet</h3><p>Add your doctors here first.</p></div>`;
+  if(dCont){ dCont.innerHTML=doctors.length?'':emptyD; if(doctors.length){ dCont.innerHTML=''; doctors.forEach(d=>dCont.insertAdjacentHTML('beforeend',buildCard(d,false))); } }
+  if(mCont){ mCont.innerHTML=doctors.length?'':emptyM; if(doctors.length){ mCont.innerHTML=''; doctors.forEach(d=>mCont.insertAdjacentHTML('beforeend',buildCard(d,true))); } }
+}
+
+// ── BACKUP / RESTORE ──
+async function backupData(){
+  let medicines=await dbGet('medicines'),doctors=await dbGet('doctors'),prescriptions=await dbGet('prescriptions'),logs=await dbGet('logs');
+  let data={version:APP_VER,app:'MedTrack',exportedAt:new Date().toISOString(),medicines,doctors,prescriptions,logs};
+  let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  let url=URL.createObjectURL(blob),a=document.createElement('a');
+  let now=new Date();let hhmm=String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+  a.href=url;a.download=`medtrack-backup-${today()}_${hhmm}.json`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  showToast('Backup downloaded');
+}
+async function restoreData(e){
+  let file=e.target.files[0];if(!file)return;
+  try{
+    let data=JSON.parse(await file.text());
+    if(!data.medicines||!data.prescriptions)throw new Error();
+    if(!confirm('Restore backup? This replaces ALL current data.'))return;
+    await dbClear('medicines');await dbClear('doctors');await dbClear('prescriptions');await dbClear('logs');
+    for(let m of data.medicines){let x={...m};delete x.id;await dbAdd('medicines',x);}
+    for(let d of(data.doctors||[])){let x={...d};delete x.id;await dbAdd('doctors',x);}
+    for(let p of data.prescriptions){let x={...p};delete x.id;await dbAdd('prescriptions',x);}
+    for(let l of(data.logs||[])){let x={...l};delete x.id;await dbAdd('logs',x);}
+    showToast('Restore complete');switchView('today');
+  }catch{showToast('Invalid backup file');}
+  e.target.value='';
+}
+
+// ── CONFIRM ──
+function askDel(store,id,title,msg){
+  document.getElementById('confirm-title').textContent=title;document.getElementById('confirm-msg').textContent=msg;
+  document.getElementById('confirm-overlay').classList.add('open');
+  document.getElementById('btn-confirm-del').onclick=async()=>{
+    await dbDel(store,id);closeConfirm();showToast('Deleted');gdriveSaveIfConnected();
+    if(store==='medicines')renderMedMaster();else if(store==='doctors')renderDocMaster();else renderRx();
+  };
+}
+function closeConfirm(){ document.getElementById('confirm-overlay').classList.remove('open'); }
+
+// ── MODAL HELPERS ──
+function closeDModal(id){ document.getElementById(id)?.classList.remove('open'); }
+function closeMModal(id){ document.getElementById(id)?.classList.remove('open'); }
+function handleDOvClick(e,id){ if(e.target===e.currentTarget) closeDModal(id); }
+function handleMOvClick(e,id){ if(e.target===e.currentTarget) closeMModal(id); }
+
+// ── TOAST ──
+let _tt;
+function showToast(msg){ let t=document.getElementById('toast');t.innerHTML=msg;t.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),2700); }
+
+// ── KEYBOARD ──
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    ['d-med-modal','d-doc-modal','d-rx-modal','d-quick-med-modal'].forEach(closeDModal);
+    ['m-med-modal','m-doc-modal','m-rx-modal','m-quick-med-modal'].forEach(closeMModal);
+    closeConfirm();
+    document.getElementById('d-skip-overlay')?.classList.remove('open');
+    document.getElementById('m-skip-overlay')?.classList.remove('open');
+  }
+});
+
+// ── CALENDAR TODAY JUMP (desktop) ──
+function jumpCalToToday(){
+  calDate=new Date(); calSelectedDate=today(); renderCalendar();
+}
+
+// ── CURRENT MEDICINES REPORT (print PDF) ──
+async function printCurrentMedReport(){
+  let prescriptions=await dbGet('prescriptions');
+  let todayStr=today();
+  let todayD=new Date(todayStr+'T00:00:00');
+
+  // Collect active prescriptions
+  let rows=[];
+  prescriptions.forEach(rx=>{
+    rx.meds.forEach(m=>{
+      // skip specific-date meds older than today
+      let startD=new Date(rx.startDate+'T00:00:00');
+      let dur=m.dateType==='specific'?1:(m.duration||1);
+      let endStr=addDays(rx.startDate,dur-1);
+      let endD=new Date(endStr+'T00:00:00');
+      if(endStr<todayStr) return; // completed
+      if(rx.startDate>todayStr) return; // upcoming
+
+      // From: days already taken including today
+      let fromDays=Math.max(1,Math.floor((todayD-startD)/(1000*60*60*24))+1);
+      // To: days remaining after today (not including today)
+      let toDays=Math.max(0,Math.floor((endD-todayD)/(1000*60*60*24)));
+
+      // Get qty per slot (Morning, Afternoon, Night) — Evening ignored
+      function getSlotQty(slot){
+        if(m.dateType==='specific'){
+          let ms=(m.specificSlot||'Morning');
+          if(ms!==slot) return '';
+          return m.specificQty||'1';
+        }
+        let sf=(m.freq||{})[slot]||{};
+        let parts=[];
+        if(sf.before&&sf.before.toString().trim()) parts.push(sf.before);
+        if(sf.after&&sf.after.toString().trim()) parts.push(sf.after);
+        return parts.join('+');
+      }
+
+      rows.push({
+        medName: m.medName,
+        morning: getSlotQty('Morning'),
+        afternoon: getSlotQty('Afternoon'),
+        night: getSlotQty('Night'),
+        from: fromDays,
+        to: toDays,
+        doctor: rx.doctorName||'—'
+      });
+    });
+  });
+
+  // Build print HTML
+  let tableRows=rows.length?rows.map(r=>`
+    <tr>
+      <td>${r.medName}</td>
+      <td>${r.morning||''}</td>
+      <td>${r.afternoon||''}</td>
+      <td>${r.night||''}</td>
+      <td>${r.from}</td>
+      <td>${r.to}</td>
+      <td>Dr. ${r.doctor}</td>
+    </tr>`).join(''):`<tr><td colspan="7" style="text-align:center;color:#888;padding:24px">No active medicines found</td></tr>`;
+
+  let printDate=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});
+  let printHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Current Medicines — MedTrack</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;padding:32px;color:#1c2533;background:#fff}
+    .report-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;border-bottom:2px solid #1a6b4a;padding-bottom:12px}
+    .brand{font-size:22px;font-weight:700;color:#1a6b4a;letter-spacing:.5px}
+    .brand span{font-weight:300;font-style:italic}
+    .report-meta{text-align:right;font-size:12px;color:#6b7a8d}
+    .report-title{font-size:15px;font-weight:600;color:#1c2533;margin-bottom:2px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    thead tr{background:#1a6b4a;color:#fff}
+    thead th{padding:10px 12px;font-size:12px;font-weight:600;text-align:center;letter-spacing:.4px;text-transform:uppercase}
+    thead th:first-child{text-align:left;width:26%}
+    thead th:last-child{text-align:left}
+    tbody tr:nth-child(even){background:#f4f6f9}
+    tbody tr:hover{background:#e8f5ef}
+    tbody td{padding:10px 12px;font-size:13px;border-bottom:1px solid #dde1e7;text-align:center;vertical-align:middle}
+    tbody td:first-child{text-align:left;font-weight:600}
+    tbody td:last-child{text-align:left;color:#1a4a8a}
+    .footer{margin-top:24px;font-size:11px;color:#9aa5b4;text-align:center;border-top:1px solid #dde1e7;padding-top:10px}
+    @media print{body{padding:16px}@page{margin:1.2cm}}
+  </style>
+  </head><body>
+  <div class="report-header">
+    <div class="brand">Med<span>Track</span></div>
+    <div class="report-meta">
+      <div class="report-title">Current Medicines Report</div>
+      <div>As of ${printDate}</div>
+    </div>
+  </div>
+  <table>
+    <thead><tr>
+      <th>Medicine</th>
+      <th>Morning</th>
+      <th>Afternoon</th>
+      <th>Night</th>
+      <th>From (days)</th>
+      <th>To (days)</th>
+      <th>Doctor</th>
+    </tr></thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+  <div class="footer">Generated by MedTrack v${APP_VER} &nbsp;|&nbsp; ${printDate}</div>
+  <script>window.onload=()=>{window.print();}<\/script>
+  </body></html>`;
+
+  let w=window.open('','_blank','width=900,height=650');
+  if(w){ w.document.write(printHtml); w.document.close(); }
+  else showToast('Allow popups to generate report');
+}
+
+// ── GOOGLE DRIVE SYNC ──
+const GDRIVE_CLIENT_ID = '830117256798-m95otvsdnk2mepqrt788lcrk6bpsebu1.apps.googleusercontent.com';
+const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+const GDRIVE_FILE_NAME = 'medtrack-data.json';
+let gdriveToken = null;
+let gdriveFileId = null;
+let gdriveSyncing = false;
+
+function gdriveSignIn(){
+  if(gdriveToken){ gdriveSignOut(); return; }
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GDRIVE_CLIENT_ID,
+    scope: GDRIVE_SCOPES,
+    callback: async(resp)=>{
+      if(resp.error){ showToast('Drive sign-in failed'); return; }
+      gdriveToken = resp.access_token;
+      updateDriveBtnState(true);
+      showToast('&#9729; Connected to Google Drive');
+      // On sign-in: try to restore from Drive first if IndexedDB is empty
+      let meds = await dbGet('medicines');
+      if(!meds.length){ await gdriveRestore(); }
+      else { await gdriveSave(); }
+    }
+  });
+  client.requestAccessToken();
+}
+
+function gdriveSignOut(){
+  if(gdriveToken) google.accounts.oauth2.revoke(gdriveToken);
+  gdriveToken=null; gdriveFileId=null;
+  updateDriveBtnState(false);
+  showToast('Disconnected from Google Drive');
+}
+
+function updateDriveBtnState(connected){
+  let db=document.getElementById('d-gdrive-btn');
+  let mb=document.getElementById('m-gdrive-btn');
+  if(connected){
+    if(db){ db.style.background='rgba(255,255,255,.35)'; db.textContent='✓ Drive On'; }
+    if(mb){ mb.style.background='rgba(255,255,255,.35)'; mb.title='Drive Connected'; mb.textContent='✓'; }
+  } else {
+    if(db){ db.style.background=''; db.textContent='☁ Drive Sync'; }
+    if(mb){ mb.style.background=''; mb.title='Drive Sync'; mb.textContent='☁'; }
+  }
+}
+
+async function gdriveSave(){
+  if(!gdriveToken || gdriveSyncing) return;
+  gdriveSyncing=true;
+  try{
+    let medicines=await dbGet('medicines'), doctors=await dbGet('doctors');
+    let prescriptions=await dbGet('prescriptions'), logs=await dbGet('logs');
+    let data=JSON.stringify({version:APP_VER,app:'MedTrack',exportedAt:new Date().toISOString(),medicines,doctors,prescriptions,logs});
+
+    // Find existing file
+    if(!gdriveFileId){
+      let r=await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${GDRIVE_FILE_NAME}'`,
+        {headers:{Authorization:'Bearer '+gdriveToken}});
+      let j=await r.json();
+      if(j.files&&j.files.length) gdriveFileId=j.files[0].id;
+    }
+
+    if(gdriveFileId){
+      // Update existing
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${gdriveFileId}?uploadType=media`,{
+        method:'PATCH', headers:{Authorization:'Bearer '+gdriveToken,'Content-Type':'application/json'}, body:data
+      });
+    } else {
+      // Create new
+      let meta=JSON.stringify({name:GDRIVE_FILE_NAME,parents:['appDataFolder']});
+      let form=new FormData();
+      form.append('metadata',new Blob([meta],{type:'application/json'}));
+      form.append('file',new Blob([data],{type:'application/json'}));
+      let r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+        {method:'POST',headers:{Authorization:'Bearer '+gdriveToken},body:form});
+      let j=await r.json(); gdriveFileId=j.id;
+    }
+  } catch(e){ console.warn('Drive save failed',e); }
+  gdriveSyncing=false;
+}
+
+async function gdriveRestore(){
+  if(!gdriveToken) return;
+  try{
+    // Find file
+    let r=await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${GDRIVE_FILE_NAME}'&fields=files(id,name)`,
+      {headers:{Authorization:'Bearer '+gdriveToken}});
+    let j=await r.json();
+    if(!j.files||!j.files.length){ showToast('No Drive backup found'); return; }
+    gdriveFileId=j.files[0].id;
+    let r2=await fetch(`https://www.googleapis.com/drive/v3/files/${gdriveFileId}?alt=media`,
+      {headers:{Authorization:'Bearer '+gdriveToken}});
+    let data=await r2.json();
+    if(!data.medicines||!data.prescriptions){ showToast('Invalid Drive data'); return; }
+    await dbClear('medicines'); await dbClear('doctors'); await dbClear('prescriptions'); await dbClear('logs');
+    for(let m of data.medicines){let x={...m};delete x.id;await dbAdd('medicines',x);}
+    for(let d of(data.doctors||[])){let x={...d};delete x.id;await dbAdd('doctors',x);}
+    for(let p of data.prescriptions){let x={...p};delete x.id;await dbAdd('prescriptions',x);}
+    for(let l of(data.logs||[])){let x={...l};delete x.id;await dbAdd('logs',x);}
+    showToast('&#9729; Data restored from Google Drive');
+    switchView('today'); renderRx(); renderMedMaster(); renderDocMaster();
+  } catch(e){ showToast('Drive restore failed'); console.warn(e); }
+}
+
+// Auto-save to Drive after every data change
+async function gdriveSaveIfConnected(){ if(gdriveToken) await gdriveSave(); }
+
+// ── INIT ──
+initDB().then(()=>{
+  renderToday();
+  renderRx(); renderMedMaster(); renderDocMaster();
+  // Register Service Worker for offline support
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/medtrack/sw.js').catch(e=>console.log('SW reg failed',e));
+  }
+}).catch(()=>{
+  let msg='<div style="text-align:center;padding:48px 20px;color:var(--muted)"><div style="font-size:32px;margin-bottom:12px">&#9888;</div><h3>Storage Error</h3><p>Please use Chrome or Firefox.</p></div>';
+  let d=document.getElementById('d-today-cols'); if(d) d.innerHTML=msg;
+  let m=document.getElementById('m-today-slots'); if(m) m.innerHTML=msg;
+});
+</script>
+</body>
+</html>
